@@ -1,0 +1,149 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Vidaa TV",
+        "description": "Enter the IP address of your Vidaa TV.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
+      },
+      "certs": {
+        "title": "SSL Certificates",
+        "description": "Most TVs require client certificates for mTLS authentication. Place the certificate files in `{cert_dir}/` or specify custom paths below.\n\nRequired files: `{cert_file}` and `{key_file}`\n\nOlder TVs expose a plain, unencrypted MQTT broker and reject TLS - for those, turn off \"Use SSL/TLS\" and no certificates are needed.",
+        "data": {
+          "use_ssl": "Use SSL/TLS",
+          "certfile": "Certificate file path",
+          "keyfile": "Key file path",
+          "auth_mode": "Authentication mode"
+        },
+        "data_description": {
+          "use_ssl": "Leave on for the usual encrypted connection. Turn off only if setup fails to connect and your TV runs older firmware that speaks plain MQTT - then the certificate paths below are ignored and the static login is used automatically.",
+          "auth_mode": "How credentials are generated. \"Auto\" detects your TV's protocol version and falls back if the TV rejects it. Choose \"Static\" if your TV runs older firmware and setup fails with a not-authorized error; \"Dynamic\" forces the newer scheme."
+        }
+      },
+      "confirm": {
+        "title": "Confirm Vidaa TV",
+        "description": "Do you want to set up {name} ({host})?"
+      },
+      "pair": {
+        "title": "Pair with TV",
+        "description": "A PIN code should appear on your TV ({name} at {host}). Enter the PIN below.",
+        "data": {
+          "pin": "PIN"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Vidaa TV",
+        "description": "The TV at {host} requires reauthentication. A new PIN will be displayed on the TV."
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to TV. Make sure the TV is on and reachable.",
+      "certs_not_found": "Certificate files not found. Please check the paths and ensure the files exist.",
+      "invalid_pin": "Invalid PIN. Please check the PIN on your TV and try again.",
+      "no_auth_response": "The TV did not respond to the PIN - it may have expired. Make sure the PIN is still shown on the TV (reboot the TV if it isn't), then try again.",
+      "pairing_failed": "Pairing failed. Please try again.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This TV is already configured.",
+      "cannot_connect": "Cannot connect to TV.",
+      "no_host": "Could not determine TV host address.",
+      "tv_not_responding": "TV is not responding. Make sure it is powered on and connected to the network.",
+      "not_vidaa_eco": "Device is not a Hisense/Vidaa TV.",
+      "reauth_successful": "Reauthentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Vidaa TV Options",
+        "description": "Configure options for your Vidaa TV.\n\n**MAC addresses reported by this TV**  \n{known_macs}",
+        "data": {
+          "scan_interval": "Polling interval",
+          "wol_mac": "Wake-on-LAN MAC address",
+          "auth_mode": "Authentication mode"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll the TV for state updates (in seconds).",
+          "wol_mac": "MAC address to send the Wake-on-LAN packet to when turning the TV on. Leave empty to use the default. A magic packet only reaches the interface the TV is actually connected on, so if turning the TV on does not work, try the other address listed above. The TV must also have Wake-on-LAN enabled in its network settings.",
+          "auth_mode": "How credentials are generated. \"Auto\" detects your TV's protocol version and falls back if the TV rejects it. Choose \"Static\" if your TV runs older firmware and setup fails with a not-authorized error; \"Dynamic\" forces the newer scheme."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_tvs_configured": {
+      "message": "No Vidaa TVs are configured."
+    },
+    "command_failed": {
+      "message": "Failed to send command to TV: {error}"
+    },
+    "cannot_connect": {
+      "message": "Cannot connect to {host}. Ensure the TV is on and reachable."
+    },
+    "authentication_failed": {
+      "message": "Authentication failed. Please re-pair with the TV."
+    }
+  },
+  "issues": {
+    "certificate_missing": {
+      "title": "SSL Certificates Missing",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Add SSL Certificates",
+            "description": "The Vidaa TV integration requires SSL certificates for authentication.\n\nPlease place the following files in `{cert_dir}/`:\n- `{cert_file}`\n- `{key_file}`\n\nThese can be extracted from the Vidaa APK. Click Submit after adding the files."
+          }
+        },
+        "abort": {
+          "certificates_still_missing": "Certificates are still missing. Please add the required files."
+        }
+      }
+    },
+    "connection_failed": {
+      "title": "TV Connection Failed",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Reconnect to TV",
+            "description": "The connection to your Vidaa TV at {host} has failed.\n\nPlease ensure:\n1. The TV is powered on\n2. The TV is connected to the network\n3. No firewall is blocking port 36669\n\nClick Submit to acknowledge and retry."
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "send_key": {
+      "name": "Send Key",
+      "description": "Send a remote key press to the TV.",
+      "fields": {
+        "key": {
+          "name": "Key",
+          "description": "The key to send (e.g., KEY_POWER, KEY_UP, KEY_OK)"
+        }
+      }
+    },
+    "launch_app": {
+      "name": "Launch App",
+      "description": "Launch an application on the TV.",
+      "fields": {
+        "app": {
+          "name": "App",
+          "description": "The app to launch (e.g., netflix, youtube, amazon)"
+        }
+      }
+    }
+  },
+  "selector": {
+    "auth_mode": {
+      "options": {
+        "auto": "Auto (recommended)",
+        "dynamic": "Dynamic (newer firmware)",
+        "static": "Static (older firmware)"
+      }
+    }
+  }
+}

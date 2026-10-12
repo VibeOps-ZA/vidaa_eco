@@ -1,0 +1,17 @@
+VIDAA Eco
+=========
+
+VIDAA Eco is a fork of and builds directly on the work of Warren Rees:
+
+  * ha_vidaatv  - https://github.com/warrenrees/ha_vidaatv   (Home Assistant integration)
+  * pyvidaa     - https://github.com/warrenrees/pyvidaa      (VIDAA protocol library)
+
+The original projects are licensed under the MIT License (see LICENSE). All
+VIDAA protocol reverse-engineering, the pairing/credential implementation, and
+the base Home Assistant integration are the work of the original author and are
+used here with gratitude.
+
+VIDAA Eco adds idle/sleep detection and automatic power-off, hardened device
+identity, and an HDMI-signal sensor, on top of that foundation. Where changes
+are protocol-level rather than power-save behaviour, the intent is to contribute
+them back upstream.
