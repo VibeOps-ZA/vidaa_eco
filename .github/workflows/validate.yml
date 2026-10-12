@@ -31,4 +31,4 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r requirements-test.txt
-      - run: pytest custom_components/vidaa_eco/tests/ -q
+      - run: pytest tests/ -q
