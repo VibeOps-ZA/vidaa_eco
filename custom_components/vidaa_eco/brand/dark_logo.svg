@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 256">
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#334155"/>
+  <rect x="84" y="152" width="88" height="54" rx="11" fill="#F8FAFC"/>
+  <rect x="92" y="160" width="72" height="38" rx="6" fill="#334155"/>
+  <rect x="118" y="206" width="20" height="9" rx="2" fill="#F8FAFC"/>
+  <rect x="100" y="215" width="56" height="9" rx="4" fill="#F8FAFC"/>
+  <g fill="#FFC400" font-family="DejaVu Sans, Arial, sans-serif" font-weight="800">
+    <text x="66" y="150" font-size="50">z</text>
+    <text x="104" y="116" font-size="72">z</text>
+    <text x="150" y="80" font-size="96">Z</text>
+  </g>
+  <text x="286" y="162" font-family="DejaVu Sans, Arial, sans-serif" font-weight="800" font-size="92" fill="#FFB300">VIDAA <tspan fill="#F8FAFC">Eco</tspan></text>
+</svg>
