@@ -1,19 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 256">
-  <defs>
-    <linearGradient id="tv2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2ad0e0"/>
-      <stop offset="1" stop-color="#0e7490"/>
-    </linearGradient>
-  </defs>
-  <rect x="34" y="60" width="150" height="104" rx="18" fill="url(#tv2)"/>
-  <rect x="48" y="74" width="122" height="76" rx="9" fill="#0b1324"/>
-  <rect x="48" y="74" width="122" height="38" rx="9" fill="#ffffff" opacity="0.06"/>
-  <rect x="96" y="164" width="26" height="14" rx="3" fill="#0e7490"/>
-  <rect x="74" y="178" width="70" height="10" rx="5" fill="#0e7490"/>
-  <g fill="#2ad0e0" font-family="Arial, Helvetica, sans-serif" font-weight="700">
-    <text x="150" y="66" font-size="34">z</text>
-    <text x="178" y="48" font-size="46">z</text>
-    <text x="210" y="26" font-size="60">Z</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 256">
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#111827"/>
+  <rect x="84" y="152" width="88" height="54" rx="11" fill="#F8FAFC"/>
+  <rect x="92" y="160" width="72" height="38" rx="6" fill="#111827"/>
+  <rect x="118" y="206" width="20" height="9" rx="2" fill="#F8FAFC"/>
+  <rect x="100" y="215" width="56" height="9" rx="4" fill="#F8FAFC"/>
+  <g fill="#FFC400" font-family="DejaVu Sans, Arial, sans-serif" font-weight="800">
+    <text x="66" y="150" font-size="50">z</text>
+    <text x="104" y="116" font-size="72">z</text>
+    <text x="150" y="80" font-size="96">Z</text>
   </g>
-  <text x="250" y="150" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="72" fill="#0e7490">VIDAA <tspan fill="#2ad0e0">Eco</tspan></text>
+  <text x="286" y="162" font-family="DejaVu Sans, Arial, sans-serif" font-weight="800" font-size="92" fill="#FFB300">VIDAA <tspan fill="#F8FAFC">Eco</tspan></text>
 </svg>
