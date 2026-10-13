@@ -26,8 +26,11 @@ def is_active(
     if not is_on:
         return False
     if statetype == "sourceswitch":
-        # External input (HDMI): active only while a live signal feeds the panel.
-        return bool(is_signal)
+        # External input (HDMI): always treated as in use. The TV's is_signal
+        # flag is unreliable (some firmware reports 0 on a live HDMI picture),
+        # so the TV cannot tell an idle input from a used one. A TV left on an
+        # input is put to sleep by the source device, not by this logic.
+        return True
     if statetype in INAPP_STATETYPES:
         if throughput_kbps is None:
             return True  # cannot tell playing from paused -> assume active

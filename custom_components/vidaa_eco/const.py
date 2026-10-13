@@ -84,7 +84,7 @@ STATE_REMOTE_LAUNCHER: Final = "remote_launcher"  # TV at the home screen
 ACTIVITY_HOME: Final = "Home"
 
 # Platform types
-PLATFORMS: Final = ["media_player", "remote", "binary_sensor", "number", "switch", "sensor"]
+PLATFORMS: Final = ["media_player", "remote", "number", "switch", "sensor", "button"]
 
 
 # --- VIDAA Eco: automatic power-off (idle / sleep detection) ---

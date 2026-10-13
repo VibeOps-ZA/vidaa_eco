@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.3] - 2026-10-14
+
+### Added
+- Button entities for practical remote keys and Plex/YouTube/Netflix/Prime Video.
+
+### Changed
+- An HDMI/external input now always counts as in use for auto power-off.
+
+### Removed
+- HDMI signal binary sensor: the TV's `is_signal` flag reads 0 on a live HDMI
+  picture on some firmware, so it was wrong. The input in use is shown by the
+  Activity sensor.
+
 ## [2.3.1+eco.2] - 2026-10-14
 
 ### Added

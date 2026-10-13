@@ -38,8 +38,14 @@ Per TV you get two entities (both opt-in; **off by default**):
   is running; `minutes_remaining` / `power_off_at` attributes say when).
 - **Activity** (sensor) — what is on screen: app name, input (e.g. `HDMI1`),
   `TV: <channel>`, `Inactive` at the home screen/settings, `Off`.
-- **HDMI signal** (binary sensor) — `Signal received` / `No signal` on an
-  external input; `No signal` on any other source; unavailable while off.
+- **Buttons** — one per remote key (Up/Down/Left/Right/OK, Back, Home, Menu,
+  Exit, Info, Play, Pause, Stop, Rewind, Fast forward, Subtitles, Mute,
+  Volume ±, Channel ±, Red/Green/Yellow/Blue) and app launchers (Plex, YouTube,
+  Netflix, Prime Video). Unavailable while the TV is off.
+
+An HDMI/external input always counts as in use: the TV cannot report whether a
+live picture is present, so a TV left on an input is never powered off by this
+integration - let the source device put it to sleep (e.g. HDMI-CEC).
 
 The logic is two-stage and deliberate:
 

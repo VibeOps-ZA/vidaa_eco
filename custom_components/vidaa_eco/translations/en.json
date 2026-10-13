@@ -147,15 +147,6 @@
     }
   },
   "entity": {
-    "binary_sensor": {
-      "hdmi_signal": {
-        "name": "HDMI signal",
-        "state": {
-          "on": "Signal received",
-          "off": "No signal"
-        }
-      }
-    },
     "sensor": {
       "eco_state": {
         "name": "Eco state",

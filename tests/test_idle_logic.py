@@ -12,7 +12,7 @@ def test_is_active():
     assert is_active(is_on=True, statetype="app", is_signal=None, throughput_kbps=None, floor=F) is True
     assert is_active(is_on=True, statetype="livetv", is_signal=None, throughput_kbps=5000, floor=F) is True
     assert is_active(is_on=True, statetype="sourceswitch", is_signal=1, throughput_kbps=None, floor=F) is True
-    assert is_active(is_on=True, statetype="sourceswitch", is_signal=0, throughput_kbps=None, floor=F) is False
+    assert is_active(is_on=True, statetype="sourceswitch", is_signal=0, throughput_kbps=None, floor=F) is True
     assert is_active(is_on=True, statetype="remote_launcher", is_signal=None, throughput_kbps=None, floor=F) is False
     assert is_active(is_on=True, statetype="remote_setting", is_signal=None, throughput_kbps=None, floor=F) is False
     assert is_active(is_on=False, statetype="app", is_signal=None, throughput_kbps=5000, floor=F) is False
