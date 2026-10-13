@@ -33,9 +33,11 @@ Per TV you get two entities (both opt-in; **off by default**):
 
 - **Auto power-off** (switch) — enable the feature.
 - **Auto-off delay** (number, minutes) — your grace period.
-- **Eco state** (sensor) — what the logic currently thinks: `Off`, `Disabled`,
-  `Active`, `Idle` (silent confirm window) or `Counting down` (your grace delay
-  is running; `minutes_remaining` / `power_off_at` attributes say when).
+- **Auto-off status** (sensor) — what auto power-off is doing, in plain words:
+  `Off`, `Auto-off disabled`, `In use`, `HDMI in use – no timer`,
+  `Idle – checking` (silent confirm window) or `Powering off in N min` (your
+  delay is running). For automations use the `status` attribute
+  (`off` / `disabled` / `active` / `hdmi` / `idle` / `countdown`).
 - **Activity** (sensor) — what is on screen: app name, input (e.g. `HDMI1`),
   `TV: <channel>`, `Inactive` at the home screen/settings, `Off`.
 - **Buttons** — one per remote key (Up/Down/Left/Right/OK, Back, Home, Menu,

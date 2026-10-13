@@ -2,9 +2,9 @@
 
 Two plain sensors that make the TV's situation readable at a glance:
 
-- ``<TV> Eco state``: what the auto power-off logic currently thinks -
-  ``off`` / ``active`` / ``idle`` (silent confirm window) / ``countdown``
-  (the user's grace delay is running) / ``disabled`` (switch off).
+- ``<TV> Auto-off status``: what the auto power-off logic is doing, as text -
+  Off / Auto-off disabled / In use / HDMI in use – no timer / Idle – checking /
+  Powering off in N min.
 - ``<TV> Activity``: what is on screen - an app name, an input, a channel,
   ``Inactive`` at the launcher/settings, ``Off`` when the TV is off.
 """
@@ -19,12 +19,24 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     CONF_DEVICE_ID,
-    ECO_STATES,
+    ECO_STATE_ACTIVE,
+    ECO_STATE_COUNTDOWN,
+    ECO_STATE_DISABLED,
+    ECO_STATE_HDMI,
+    ECO_STATE_IDLE,
     ECO_STATE_OFF,
 )
 
 ACTIVITY_OFF = "Off"
 ACTIVITY_INACTIVE = "Inactive"
+
+STATUS_TEXT = {
+    ECO_STATE_OFF: "Off",
+    ECO_STATE_DISABLED: "Auto-off disabled",
+    ECO_STATE_ACTIVE: "In use",
+    ECO_STATE_HDMI: "HDMI in use – no timer",
+    ECO_STATE_IDLE: "Idle – checking",
+}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
@@ -57,25 +69,34 @@ class _VidaaSensorBase(CoordinatorEntity, SensorEntity):
 
 
 class VidaaEcoStateSensor(_VidaaSensorBase):
-    """What the auto power-off logic currently thinks of the TV."""
+    """Auto-off status: what the auto power-off logic is doing, in plain words.
 
-    _attr_translation_key = "eco_state"
-    _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = list(ECO_STATES)
-    _attr_icon = "mdi:television-ambient-light"
+    The state is human-readable text ("Powering off in 7 min"); the stable
+    machine value for automations is the ``status`` attribute
+    (off / disabled / active / hdmi / idle / countdown).
+    """
+
+    _attr_translation_key = "auto_off_status"
+    _attr_icon = "mdi:timer-sand"
 
     def __init__(self, coordinator, entry) -> None:
+        # unique_id suffix stays "eco_state" so the existing entity is kept.
         super().__init__(coordinator, entry, "eco_state")
 
     @property
     def native_value(self) -> str:
-        return (self.coordinator.eco_state or {}).get("state", ECO_STATE_OFF)
+        eco = self.coordinator.eco_state or {}
+        status = eco.get("state", ECO_STATE_OFF)
+        if status == ECO_STATE_COUNTDOWN:
+            return f"Powering off in {eco.get('minutes_remaining', 0)} min"
+        return STATUS_TEXT.get(status, status)
 
     @property
     def extra_state_attributes(self) -> dict:
         eco = self.coordinator.eco_state or {}
         data = self.coordinator.data or {}
         return {
+            "status": eco.get("state", ECO_STATE_OFF),
             "statetype": data.get("statetype"),
             "activity": _activity(data),
             "idle_since": eco.get("idle_since"),

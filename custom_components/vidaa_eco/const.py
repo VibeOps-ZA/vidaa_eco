@@ -109,8 +109,9 @@ INAPP_STATETYPES: Final = ["app", "livetv"]
 ECO_STATE_OFF: Final = "off"            # TV is off / unreachable
 ECO_STATE_DISABLED: Final = "disabled"  # TV on, auto power-off switch is off
 ECO_STATE_ACTIVE: Final = "active"      # something a viewer would miss is on
+ECO_STATE_HDMI: Final = "hdmi"          # on an HDMI/external input: always in use, no timer
 ECO_STATE_IDLE: Final = "idle"          # looks idle; silent confirm window running
 ECO_STATE_COUNTDOWN: Final = "countdown"  # idle confirmed; user grace delay running
 ECO_STATES: Final = [
-    ECO_STATE_OFF, ECO_STATE_DISABLED, ECO_STATE_ACTIVE, ECO_STATE_IDLE, ECO_STATE_COUNTDOWN,
+    ECO_STATE_OFF, ECO_STATE_DISABLED, ECO_STATE_ACTIVE, ECO_STATE_HDMI, ECO_STATE_IDLE, ECO_STATE_COUNTDOWN,
 ]

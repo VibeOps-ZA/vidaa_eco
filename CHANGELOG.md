@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.4] - 2026-10-14
+
+### Changed
+- "Eco state" sensor renamed "Auto-off status" with plain-text states (Off,
+  Auto-off disabled, In use, HDMI in use – no timer, Idle – checking,
+  Powering off in N min); raw value moved to the `status` attribute.
+
 ## [2.3.1+eco.3] - 2026-10-14
 
 ### Added

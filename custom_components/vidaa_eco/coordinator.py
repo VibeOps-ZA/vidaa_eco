@@ -45,6 +45,7 @@ from .const import (  # VIDAA Eco auto-off
     ECO_STATE_OFF,
     ECO_STATE_DISABLED,
     ECO_STATE_ACTIVE,
+    ECO_STATE_HDMI,
     ECO_STATE_IDLE,
     ECO_STATE_COUNTDOWN,
 )
@@ -468,17 +469,23 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             delay_min=delay_min,
             vol_snapshot=(data.get("volume"), data.get("is_muted")),
         )
-        self._record_eco_state(enabled, active, tracker, now)
+        self._record_eco_state(enabled, active, tracker, now, data.get("statetype"))
         if action == "power_off":
             _LOGGER.info("%s idle grace elapsed; powering off", self.entry.title)
             self.hass.async_create_task(self._async_power_off_idle())
 
-    def _record_eco_state(self, enabled: bool, active: bool, tracker, now: float) -> None:
+    def _record_eco_state(
+        self, enabled: bool, active: bool, tracker, now: float, statetype: str | None = None
+    ) -> None:
         """Translate the tracker's monotonic timers into sensor-friendly fields."""
         wall = dt_util.utcnow()
         state: dict[str, Any] = {"state": ECO_STATE_ACTIVE}
         if not enabled:
             state["state"] = ECO_STATE_DISABLED
+        elif statetype == "sourceswitch":
+            # HDMI/external input: always in use; the TV cannot report whether
+            # a picture is present, so no idle timer ever runs here.
+            state["state"] = ECO_STATE_HDMI
         elif active or tracker.idle_since is None:
             state["state"] = ECO_STATE_ACTIVE
         else:

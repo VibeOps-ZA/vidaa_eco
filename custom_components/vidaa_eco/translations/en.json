@@ -148,18 +148,11 @@
   },
   "entity": {
     "sensor": {
-      "eco_state": {
-        "name": "Eco state",
-        "state": {
-          "off": "Off",
-          "disabled": "Disabled",
-          "active": "Active",
-          "idle": "Idle",
-          "countdown": "Counting down"
-        }
-      },
       "activity": {
         "name": "Activity"
+      },
+      "auto_off_status": {
+        "name": "Auto-off status"
       }
     }
   }
