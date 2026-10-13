@@ -33,6 +33,13 @@ Per TV you get two entities (both opt-in; **off by default**):
 
 - **Auto power-off** (switch) — enable the feature.
 - **Auto-off delay** (number, minutes) — your grace period.
+- **Eco state** (sensor) — what the logic currently thinks: `Off`, `Disabled`,
+  `Active`, `Idle` (silent confirm window) or `Counting down` (your grace delay
+  is running; `minutes_remaining` / `power_off_at` attributes say when).
+- **Activity** (sensor) — what is on screen: app name, input (e.g. `HDMI1`),
+  `TV: <channel>`, `Inactive` at the home screen/settings, `Off`.
+- **HDMI signal** (binary sensor) — `Signal received` / `No signal` on an
+  external input; `No signal` on any other source; unavailable while off.
 
 The logic is two-stage and deliberate:
 

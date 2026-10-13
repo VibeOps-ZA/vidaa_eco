@@ -145,5 +145,31 @@
         "static": "Static (older firmware)"
       }
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "hdmi_signal": {
+        "name": "HDMI signal",
+        "state": {
+          "on": "Signal received",
+          "off": "No signal"
+        }
+      }
+    },
+    "sensor": {
+      "eco_state": {
+        "name": "Eco state",
+        "state": {
+          "off": "Off",
+          "disabled": "Disabled",
+          "active": "Active",
+          "idle": "Idle",
+          "countdown": "Counting down"
+        }
+      },
+      "activity": {
+        "name": "Activity"
+      }
+    }
   }
 }

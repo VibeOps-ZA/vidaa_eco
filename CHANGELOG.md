@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.2] - 2026-10-14
+
+### Added
+- `sensor.<tv>_eco_state`: `off` / `disabled` / `active` / `idle` / `countdown`
+  with `idle_since`, `idle_minutes`, `minutes_remaining`, `power_off_at`.
+- `sensor.<tv>_activity`: current app / input / channel, `Inactive` at the
+  launcher or settings, `Off` when the TV is off.
+
+### Changed
+- HDMI signal sensor now reads "Signal received" / "No signal", reports
+  "No signal" on any non-input source, and is unavailable only while the TV
+  is off (previously unknown off-HDMI).
+
+### Fixed
+- Every poll of a powered-on TV failed with `name 'time' is not defined`
+  (module-level import missing in the coordinator), leaving the media player
+  stuck on *off* and the remote/HDMI entities unavailable.
+
 ## [2.3.1] - 2026-08-10
 
 Requires `pyvidaa` 2.3.0, unchanged from 2.3.0.

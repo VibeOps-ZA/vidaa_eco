@@ -84,7 +84,7 @@ STATE_REMOTE_LAUNCHER: Final = "remote_launcher"  # TV at the home screen
 ACTIVITY_HOME: Final = "Home"
 
 # Platform types
-PLATFORMS: Final = ["media_player", "remote", "binary_sensor", "number", "switch"]
+PLATFORMS: Final = ["media_player", "remote", "binary_sensor", "number", "switch", "sensor"]
 
 
 # --- VIDAA Eco: automatic power-off (idle / sleep detection) ---
@@ -104,3 +104,13 @@ DEFAULT_THROUGHPUT_FLOOR: Final = 100     # kbit/s
 IDLE_STATETYPES: Final = ["remote_launcher", "remote_setting"]
 # in-app statetypes where playing-vs-idle can only be told apart with throughput
 INAPP_STATETYPES: Final = ["app", "livetv"]
+
+# Eco state sensor values (sensor.<tv>_eco_state), in rough lifecycle order.
+ECO_STATE_OFF: Final = "off"            # TV is off / unreachable
+ECO_STATE_DISABLED: Final = "disabled"  # TV on, auto power-off switch is off
+ECO_STATE_ACTIVE: Final = "active"      # something a viewer would miss is on
+ECO_STATE_IDLE: Final = "idle"          # looks idle; silent confirm window running
+ECO_STATE_COUNTDOWN: Final = "countdown"  # idle confirmed; user grace delay running
+ECO_STATES: Final = [
+    ECO_STATE_OFF, ECO_STATE_DISABLED, ECO_STATE_ACTIVE, ECO_STATE_IDLE, ECO_STATE_COUNTDOWN,
+]

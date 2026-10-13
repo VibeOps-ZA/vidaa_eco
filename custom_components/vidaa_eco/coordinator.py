@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import math
+import time
 from datetime import timedelta
 from typing import Any
 
@@ -12,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from pyvidaa import APPS
 from pyvidaa.wol import wake_tv
@@ -39,6 +42,11 @@ from .const import (  # VIDAA Eco auto-off
     DETECT_MINUTES,
     IDLE_STATETYPES,
     INAPP_STATETYPES,
+    ECO_STATE_OFF,
+    ECO_STATE_DISABLED,
+    ECO_STATE_ACTIVE,
+    ECO_STATE_IDLE,
+    ECO_STATE_COUNTDOWN,
 )
 from .idle_logic import is_active, IdleTracker
 
@@ -90,6 +98,10 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Parsed device info (model, sw_version, name, ip, device_id) cached from
         # the TV's getdeviceinfo; entities build their DeviceInfo from this.
         self.device_data: dict[str, Any] = {}
+        # What the auto power-off logic currently thinks, for the Eco state
+        # sensor: {"state", "idle_since", "idle_minutes", "minutes_remaining",
+        # "power_off_at"}. Updated on every poll, including while the TV is off.
+        self.eco_state: dict[str, Any] = {"state": ECO_STATE_OFF}
 
     @property
     def available(self) -> bool:
@@ -225,7 +237,6 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from TV."""
-        import time
         start = time.monotonic()
 
         try:
@@ -248,7 +259,9 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # power-off and dropped the remote entity to unavailable
                     # for as long as the TV stayed off.
                     _LOGGER.debug("TV is not reachable; reporting it as off")
-                    return self._powered_off_data()
+                    data = self._powered_off_data()
+                    self._evaluate_auto_off(data)
+                    return data
                 _LOGGER.debug("Reconnect took %.2fs", time.monotonic() - start)
                 # A reconnect can mean the TV rebooted (e.g. a firmware update),
                 # so re-fetch device info to pick up a new firmware version -
@@ -444,18 +457,42 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._idle_tracker = tracker
         if not data.get("is_on"):
             tracker.reset()
+            self.eco_state = {"state": ECO_STATE_OFF}
             return
         active = self._is_active(data)
+        now = time.monotonic()
         action = tracker.evaluate(
-            now=time.monotonic(),
+            now=now,
             enabled=enabled,
             active=active,
             delay_min=delay_min,
             vol_snapshot=(data.get("volume"), data.get("is_muted")),
         )
+        self._record_eco_state(enabled, active, tracker, now)
         if action == "power_off":
             _LOGGER.info("%s idle grace elapsed; powering off", self.entry.title)
             self.hass.async_create_task(self._async_power_off_idle())
+
+    def _record_eco_state(self, enabled: bool, active: bool, tracker, now: float) -> None:
+        """Translate the tracker's monotonic timers into sensor-friendly fields."""
+        wall = dt_util.utcnow()
+        state: dict[str, Any] = {"state": ECO_STATE_ACTIVE}
+        if not enabled:
+            state["state"] = ECO_STATE_DISABLED
+        elif active or tracker.idle_since is None:
+            state["state"] = ECO_STATE_ACTIVE
+        else:
+            idle_s = now - tracker.idle_since
+            state["idle_since"] = (wall - timedelta(seconds=idle_s)).isoformat()
+            state["idle_minutes"] = int(idle_s // 60)
+            if tracker.grace_deadline is not None:
+                remaining_s = max(0.0, tracker.grace_deadline - now)
+                state["state"] = ECO_STATE_COUNTDOWN
+                state["minutes_remaining"] = math.ceil(remaining_s / 60)
+                state["power_off_at"] = (wall + timedelta(seconds=remaining_s)).isoformat()
+            else:
+                state["state"] = ECO_STATE_IDLE
+        self.eco_state = state
 
     async def _async_power_off_idle(self) -> None:
         try:
