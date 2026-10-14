@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from .const import DOMAIN, CONF_DEVICE_ID
 
@@ -102,6 +103,9 @@ class VidaaKeyButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{did or entry.entry_id}_{desc.key}"
         self._attr_name = desc.name
         self._attr_icon = desc.icon
+        # Suggest "button.<tv>_<key>": left to itself, HA prefixes the area
+        # when the device already has one ("button.study_study_tv_ok").
+        self.entity_id = f"button.{slugify(entry.title)}_{slugify(desc.name)}"
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -139,6 +143,7 @@ class VidaaInputButton(CoordinatorEntity, ButtonEntity):
             self._attr_icon = "mdi:television-classic"
         elif self._sourcename.upper().startswith("AV"):
             self._attr_icon = "mdi:video-input-component"
+        self.entity_id = f"button.{slugify(entry.title)}_{slugify(self._attr_name)}"
         label = item.get("displayname")
         self._attr_extra_state_attributes = {
             "sourceid": item.get("sourceid"),
