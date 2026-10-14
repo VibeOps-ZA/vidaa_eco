@@ -521,6 +521,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._input_listeners = []
         self._input_listeners.append(listener)
 
+    def _throughput_kbps(self):
         """Current throughput for this TV in kbit/s, or None if not configured."""
         sensor = self.entry.options.get(CONF_THROUGHPUT_SENSOR)
         if not sensor:
