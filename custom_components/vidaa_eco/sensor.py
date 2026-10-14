@@ -19,6 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from .const import (
     DOMAIN,
@@ -165,6 +166,9 @@ class VidaaThroughputSensor(_VidaaSensorBase):
 
     def __init__(self, coordinator, entry) -> None:
         super().__init__(coordinator, entry, "network_throughput")
+        # Same naming as the other VIDAA Eco entities (sensor.<tv>_network_throughput),
+        # independent of the device's area.
+        self.entity_id = f"sensor.{slugify(entry.title)}_network_throughput"
 
     @property
     def native_value(self):

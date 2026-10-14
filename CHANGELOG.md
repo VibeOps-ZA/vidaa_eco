@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Auto-off status attributes `throughput_kbps` and `throughput_mode`.
 - A **Repairs** notice while Auto power-off is on without any throughput source.
 - Options dialog lists the auto-detected sensors and links to the guide.
+- Remote dashboard (and `docs/dashboard-example.yaml`): Network throughput tile
+  next to the auto power-off settings; new screenshots.
 
 ### Changed
 - Turning **Auto power-off** on now requires a throughput source (picked or

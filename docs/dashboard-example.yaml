@@ -520,8 +520,13 @@ views:
       - type: numeric-input
         style: buttons
       features_position: bottom
+    - type: tile
+      entity: sensor.living_room_tv_network_throughput
+      name: Network throughput
+      icon: "mdi:swap-vertical"
     - type: markdown
       text_only: true
-      content: "A TV counts as **idle** at the home screen, in settings, or on an input with **no signal**.\
-        \ After 15 min idle the delay above starts; when it runs out the TV is switched off. An input\
-        \ with a picture coming in never counts down."
+      content: "A TV counts as **idle** at the home screen, in settings, on an input with **no signal**,
+        or in an app while **Network throughput** is below 100 kbit/s (paused). After 15 min idle the
+        delay above starts; when it runs out the TV is switched off. An input with a picture coming in
+        never counts down."

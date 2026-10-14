@@ -268,6 +268,11 @@ shows the current kbit/s, `mode` (`manual`, `auto` or `none`) and every source
 with its own value. Start a video: the number should jump to thousands of kbit/s;
 pause it: it should drop under the floor.
 
+The remote dashboard shows it next to the auto power-off settings — here an
+open YouTube app with almost no traffic, so the TV counts as idle:
+
+![Dashboard with Network throughput](docs/images/dashboard-bedroom-throughput.png)
+
 ![Network throughput sensor](docs/images/network-throughput-more-info.png)
 
 ---
@@ -288,8 +293,6 @@ pause it: it should drop under the floor.
 The **Auto power-off** switch and **Auto-off delay** number are ordinary
 entities, so you can change them from a dashboard or an automation. Not using
 Auto power-off? Leave all throughput options alone.
-
-![Options dialog](docs/images/options-dialog.png)
 
 ---
 

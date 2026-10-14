@@ -15,8 +15,10 @@ It shows, per TV:
 - **Remote** – Power, Home, Mute, Subtitles, a direction pad with OK and
   Menu / Info / Back / Exit around it, volume and channel, playback keys and the
   four colour keys.
-- **Auto power-off** – the on/off switch and the delay, with a one-line reminder
-  of how it works.
+- **Auto power-off** – the on/off switch, the delay and the TV's **Network
+  throughput** (what auto power-off uses to tell a playing app from a paused one),
+  with a one-line reminder of how it works. Using the dashboard only as a remote?
+  Delete this section.
 
 On a phone the three columns stack into one long remote:
 
