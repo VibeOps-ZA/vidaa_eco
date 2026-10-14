@@ -18,6 +18,7 @@ from homeassistant.util import dt as dt_util
 
 from pyvidaa import APPS
 from pyvidaa.wol import wake_tv
+from pyvidaa.topics import TOPIC_SET_SOURCE, get_topic
 from .const import (
     ACTIVITY_HOME,
     DOMAIN,
@@ -711,9 +712,37 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._check_sent(await self.tv.async_set_volume(volume), "volume")
         await self.async_request_refresh()
 
+    def _find_input(self, source: str) -> dict | None:
+        """The TV-reported input matching a name, id or on-screen label."""
+        wanted = (source or "").strip().lower()
+        for item in self.inputs:
+            names = {
+                str(item.get(k) or "").strip().lower()
+                for k in ("sourceid", "sourcename", "displayname")
+            }
+            if wanted and wanted in names:
+                return item
+        return None
+
     async def async_select_source(self, source: str) -> None:
-        """Select input source."""
-        self._check_sent(await self.tv.async_set_source(source), f"source {source}")
+        """Select input source.
+
+        For an input the TV itself reported, send its own sourceid and
+        sourcename. The library instead maps names to legacy numeric ids
+        ("hdmi2" -> "4"), which current firmware ignores - its ids are
+        "HDMI2", "AVS", "TV" - so switching inputs silently did nothing.
+        """
+        item = self._find_input(source)
+        if item is None:
+            self._check_sent(await self.tv.async_set_source(source), f"source {source}")
+        else:
+            payload = {"sourceid": item["sourceid"], "sourcename": item["sourcename"]}
+
+            def _send():
+                client = self.tv._ensure_client()
+                return client._publish(get_topic(TOPIC_SET_SOURCE, client.client_id), payload)
+
+            self._check_sent(await self.tv._run_in_executor(_send), f"source {source}")
         await self.async_request_refresh()
 
     async def async_send_key(self, key: str) -> None:

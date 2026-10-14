@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.6] - 2026-10-14
+
+### Fixed
+- Switching to a physical input (HDMI1/2/3, AV, TV) did nothing on current
+  firmware: the library sent legacy numeric source ids. The TV's own
+  sourceid/sourcename are now sent (input buttons and the media player).
+- Signal detection read a stray reply instead of the source list; the source
+  list is now requested until a genuine one arrives.
+
 ## [2.3.1+eco.5] - 2026-10-14
 
 ### Added
