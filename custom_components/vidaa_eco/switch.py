@@ -1,18 +1,24 @@
 """Enable/disable the VIDAA Eco automatic power-off for a TV.
 
-Off by default: the integration never powers a TV off unless the owner opts in.
+Off by default: the integration never powers a TV off unless the owner opts in,
+so people who only want the remote/buttons never have to set anything up.
+
+Turning it on requires a network-throughput source (picked in the options, or
+auto-detected from a router integration): without one an open app can never be
+told apart from a playing one. See throughput.py and the README.
 """
 from __future__ import annotations
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, CONF_DEVICE_ID, DEFAULT_AUTO_OFF_ENABLED
+from .const import DOMAIN, CONF_DEVICE_ID, DEFAULT_AUTO_OFF_ENABLED, DOCS_THROUGHPUT_URL
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
@@ -51,6 +57,13 @@ class VidaaAutoOffSwitch(CoordinatorEntity, RestoreEntity, SwitchEntity):
         self.coordinator.auto_off_enabled = bool(self._attr_is_on)
 
     async def async_turn_on(self, **kwargs) -> None:
+        sources, _mode = self.coordinator.throughput_sources()
+        if not sources:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="throughput_required",
+                translation_placeholders={"tv": self._entry.title, "url": DOCS_THROUGHPUT_URL},
+            )
         self._attr_is_on = True
         self.coordinator.auto_off_enabled = True
         self.async_write_ha_state()

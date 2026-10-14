@@ -29,6 +29,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
+    BooleanSelector,
 )
 from homeassistant.helpers.service_info.ssdp import SsdpServiceInfo
 
@@ -61,10 +62,16 @@ from .const import (
     SCAN_INTERVAL,
 )
 from .const import (  # VIDAA Eco
-    CONF_THROUGHPUT_SENSOR,
+    CONF_THROUGHPUT_AUTO,
     CONF_THROUGHPUT_FLOOR,
+    CONF_THROUGHPUT_SENSORS,
+    DEFAULT_AUTO_OFF_ENABLED,
+    DEFAULT_THROUGHPUT_AUTO,
     DEFAULT_THROUGHPUT_FLOOR,
+    DOCS_THROUGHPUT_URL,
 )
+from .identity import bare_mac, tv_device_id
+from . import throughput as tp
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -358,15 +365,25 @@ class VidaaTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._mac = mac
             self._mac_resolved = True
 
+    def _stable_device_id(self, value: Any, device_info: dict | None = None) -> str | None:
+        """A real MAC-style id, never an interface name like "wlan" (see identity.py)."""
+        return bare_mac(value) or tv_device_id(
+            device_info,
+            self._mac_wifi,
+            self._mac_ethernet,
+            self._mac if self._mac_resolved else None,
+        )
+
     def _apply_validation_result(self, info: dict[str, Any]) -> None:
         """Copy the fields validate_connection resolved onto the flow."""
         self._name = info.get("name") or self._name
-        self._device_id = info.get("device_id")
         self._model = info.get("model")
         self._sw_version = info.get("sw_version")
         self._remember_mac(info.get("mac"))
         self._mac_ethernet = info.get("mac_ethernet") or self._mac_ethernet
         self._mac_wifi = info.get("mac_wifi") or self._mac_wifi
+        # After the MACs, so the fallback can use them.
+        self._device_id = self._stable_device_id(info.get("device_id"))
         # Pin "auto" down to whatever actually connected, so pairing and every
         # later connect go straight to it.
         if info.get("auth_mode"):
@@ -762,7 +779,9 @@ class VidaaTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._pairing_tv = None
 
                     if device_info:
-                        self._device_id = device_info.get("network_type") or self._device_id
+                        self._device_id = self._stable_device_id(
+                            device_info.get("network_type"), device_info
+                        ) or self._device_id
                         self._model = device_info.get("model_name") or self._model
                         self._sw_version = device_info.get("tv_version") or self._sw_version
                         if device_info.get("tv_name"):
@@ -906,7 +925,8 @@ class VidaaTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             _LOGGER.debug("Device info fetch failed: %s", err)
                         if device_info:
                             self._device_id = (
-                                device_info.get("network_type") or self._device_id
+                                self._stable_device_id(device_info.get("network_type"), device_info)
+                                or self._device_id
                             )
                             self._model = (
                                 device_info.get("model_name") or self._model
@@ -977,8 +997,24 @@ class VidaaTVOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
+        coordinator = getattr(getattr(self.config_entry, "runtime_data", None), "coordinator", None)
+        detected = coordinator.discovered_throughput_sources(force=True) if coordinator else []
+        auto_off_on = bool(getattr(coordinator, "auto_off_enabled", DEFAULT_AUTO_OFF_ENABLED))
+
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            picked = [e for e in (user_input.get(CONF_THROUGHPUT_SENSORS) or []) if e]
+            use_auto = user_input.get(CONF_THROUGHPUT_AUTO, DEFAULT_THROUGHPUT_AUTO)
+            # Auto power-off needs at least one throughput source: without one an
+            # open app can never be told apart from a playing one. Remote-only
+            # users (auto power-off switched off) are not asked for anything.
+            if auto_off_on and not picked and not (use_auto and detected):
+                errors["base"] = "throughput_required"
+            else:
+                data = dict(user_input)
+                data[CONF_THROUGHPUT_SENSORS] = picked
+                data.pop("throughput_sensor", None)  # legacy single-sensor option
+                return self.async_create_entry(title="", data=data)
 
         current_interval = self.config_entry.options.get("scan_interval", SCAN_INTERVAL)
         # WoL target: previously-set option, else the TV's real hardware MAC
@@ -1021,9 +1057,21 @@ class VidaaTVOptionsFlow(config_entries.OptionsFlow):
             else "None found yet - the TV reports them only while it is reachable."
         )
 
+        current_sources = tp.configured_sources(dict(self.config_entry.options))
+        detected_text = (
+            "  \n".join(f"- `{eid}`" for eid in detected)
+            if detected
+            else "None found - see the guide linked below."
+        )
+
         return self.async_show_form(
             step_id="init",
-            description_placeholders={"known_macs": macs_text},
+            errors=errors,
+            description_placeholders={
+                "known_macs": macs_text,
+                "detected": detected_text,
+                "docs_url": DOCS_THROUGHPUT_URL,
+            },
             data_schema=vol.Schema(
                 {
                     vol.Optional(
@@ -1048,10 +1096,20 @@ class VidaaTVOptionsFlow(config_entries.OptionsFlow):
                         CONF_AUTH_MODE,
                         default=current_auth_mode,
                     ): auth_mode_selector(),
+                    # Network throughput (needed for Auto power-off inside apps).
+                    # Automatic: use data-rate sensors that other integrations
+                    # (UniFi, FRITZ!Box, ...) attach to a device with this TV's MAC.
                     vol.Optional(
-                        CONF_THROUGHPUT_SENSOR,
-                        description={"suggested_value": self.config_entry.options.get(CONF_THROUGHPUT_SENSOR)},
-                    ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+                        CONF_THROUGHPUT_AUTO,
+                        default=self.config_entry.options.get(CONF_THROUGHPUT_AUTO, DEFAULT_THROUGHPUT_AUTO),
+                    ): BooleanSelector(),
+                    # Manual pick wins over automatic. Several sensors are summed -
+                    # e.g. the Wi-Fi AND Ethernet client of the same TV, or a
+                    # router's separate download and upload sensors.
+                    vol.Optional(
+                        CONF_THROUGHPUT_SENSORS,
+                        description={"suggested_value": current_sources},
+                    ): EntitySelector(EntitySelectorConfig(domain="sensor", multiple=True)),
                     vol.Optional(
                         CONF_THROUGHPUT_FLOOR,
                         default=self.config_entry.options.get(CONF_THROUGHPUT_FLOOR, DEFAULT_THROUGHPUT_FLOOR),

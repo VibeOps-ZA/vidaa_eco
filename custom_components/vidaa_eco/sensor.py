@@ -7,10 +7,14 @@ Two plain sensors that make the TV's situation readable at a glance:
   Powering off in N min.
 - ``<TV> Activity``: what is on screen - an app name, an input, a channel,
   ``Inactive`` at the launcher/settings, ``Off`` when the TV is off.
+- ``<TV> Network throughput`` (diagnostic): the TV's current traffic in kbit/s
+  as used by the auto power-off logic, which sensors it comes from, and a link
+  to the setup guide when none is configured.
 """
 from __future__ import annotations
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.const import EntityCategory, UnitOfDataRate
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -19,6 +23,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN,
     CONF_DEVICE_ID,
+    DOCS_THROUGHPUT_URL,
     ECO_STATE_ACTIVE,
     ECO_STATE_COUNTDOWN,
     ECO_STATE_DISABLED,
@@ -44,6 +49,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     async_add_entities([
         VidaaEcoStateSensor(coordinator, entry),
         VidaaActivitySensor(coordinator, entry),
+        VidaaThroughputSensor(coordinator, entry),
     ])
 
 
@@ -108,6 +114,8 @@ class VidaaEcoStateSensor(_VidaaSensorBase):
             "idle_minutes": eco.get("idle_minutes"),
             "minutes_remaining": eco.get("minutes_remaining"),
             "power_off_at": eco.get("power_off_at"),
+            "throughput_kbps": (getattr(self.coordinator, "throughput", None) or {}).get("kbps"),
+            "throughput_mode": (getattr(self.coordinator, "throughput", None) or {}).get("mode"),
         }
 
 
@@ -135,6 +143,46 @@ class VidaaActivitySensor(_VidaaSensorBase):
             "source": data.get("source"),
             "channel_name": data.get("channel_name"),
             "channel_number": data.get("channel_number"),
+        }
+
+
+class VidaaThroughputSensor(_VidaaSensorBase):
+    """The TV's network traffic as seen by the auto power-off logic.
+
+    State: total kbit/s of the throughput sources (unknown when none is set up).
+    Attributes say where it comes from - ``mode`` manual / auto / none, each
+    ``sources`` entity with its own kbit/s - and ``setup_guide`` links to the
+    README section that explains how to get one (UniFi, FRITZ!Box, ...).
+    """
+
+    _attr_translation_key = "network_throughput"
+    _attr_icon = "mdi:swap-vertical"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.DATA_RATE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfDataRate.KILOBITS_PER_SECOND
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, coordinator, entry) -> None:
+        super().__init__(coordinator, entry, "network_throughput")
+
+    @property
+    def native_value(self):
+        return (getattr(self.coordinator, "throughput", None) or {}).get("kbps")
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        info = getattr(self.coordinator, "throughput", None) or {}
+        mode = info.get("mode", "none")
+        return {
+            "mode": mode,
+            "sources": info.get("sources") or {},
+            "status": {
+                "manual": "Using the sensors picked in the options",
+                "auto": "Using sensors found automatically for this TV's MAC address",
+                "none": "Not set up - auto power-off cannot see if an app is playing",
+            }.get(mode, mode),
+            "setup_guide": DOCS_THROUGHPUT_URL,
         }
 
 

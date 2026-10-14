@@ -40,6 +40,7 @@ from .const import (
     ATTR_APP,
 )
 from .coordinator import VidaaTVDataUpdateCoordinator
+from .identity import is_valid_device_id, tv_device_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,8 +72,55 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+def _async_migrate_device_id(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Replace an invalid device_id (e.g. "wlan") with the TV's MAC, keeping everything.
+
+    Some firmwares return the interface name instead of a MAC in the field the
+    device_id was taken from, so several TVs could share the id "wlan". This
+    re-keys such an entry in place: config entry (data + unique_id), the device
+    registry identifier and every entity unique_id. Entity IDs, names, history,
+    dashboards and automations are untouched.
+    """
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+    old = entry.data.get(CONF_DEVICE_ID)
+    if not old or is_valid_device_id(old):
+        return
+    new = tv_device_id(
+        None,
+        entry.data.get(CONF_MAC_WIFI),
+        entry.data.get(CONF_MAC_ETHERNET),
+        entry.data.get(CONF_HW_MAC),
+    )
+    if not new:
+        return
+    for other in hass.config_entries.async_entries(DOMAIN):
+        if other.entry_id != entry.entry_id and new in (other.unique_id, other.data.get(CONF_DEVICE_ID)):
+            _LOGGER.warning("Not migrating %s device id %s -> %s: already used", entry.title, old, new)
+            return
+
+    _LOGGER.info("Migrating %s device id %r -> %r", entry.title, old, new)
+    ent_reg = er.async_get(hass)
+    for ent in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        uid = ent.unique_id
+        if uid == old or uid.startswith(f"{old}_"):
+            new_uid = new + uid[len(old):]
+            if ent_reg.async_get_entity_id(ent.domain, ent.platform, new_uid) is None:
+                ent_reg.async_update_entity(ent.entity_id, new_unique_id=new_uid)
+    dev_reg = dr.async_get(hass)
+    device = dev_reg.async_get_device(identifiers={(DOMAIN, old)})
+    if device:
+        identifiers = {(d, new if (d == DOMAIN and i == old) else i) for d, i in device.identifiers}
+        dev_reg.async_update_device(device.id, new_identifiers=identifiers)
+    unique_id = new if entry.unique_id in (None, old) else entry.unique_id
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, CONF_DEVICE_ID: new}, unique_id=unique_id
+    )
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: VidaaTVConfigEntry) -> bool:
     """Set up Hisense TV from a config entry."""
+    _async_migrate_device_id(hass, entry)
     host = entry.data[CONF_HOST]
     port = entry.data.get(CONF_PORT, DEFAULT_PORT)
     mac = entry.data.get(CONF_MAC)

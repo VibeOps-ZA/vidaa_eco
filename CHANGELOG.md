@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.7] - 2026-10-14
+
+### Added
+- **Network throughput auto-detection**: when no sensor is picked, VIDAA Eco uses
+  data-rate sensors that another integration (UniFi bandwidth sensors, router
+  integrations ...) attaches to a device with one of the TV's MAC addresses.
+  Link-speed style sensors are ignored.
+- **Several throughput sensors** can be picked (multi-select); they are summed -
+  e.g. a TV's Wi-Fi and Ethernet client, or separate download/upload sensors.
+- **Network throughput** diagnostic sensor per TV: total kbit/s, `mode`
+  (manual / auto / none), every source with its value, and a link to the guide.
+- Auto-off status attributes `throughput_kbps` and `throughput_mode`.
+- A **Repairs** notice while Auto power-off is on without any throughput source.
+- Options dialog lists the auto-detected sensors and links to the guide.
+
+### Changed
+- Turning **Auto power-off** on now requires a throughput source (picked or
+  auto-detected); the switch explains what to do otherwise. Remote-only use
+  (switch off, the default) needs no setup at all.
+- The options form refuses to save with Auto power-off on and no source.
+- README reworked "remote first": pair and use as a remote; auto power-off is
+  an optional extra with a step-by-step throughput guide.
+
+### Fixed
+- Throughput values were read as kbit/s whatever their unit, so e.g. a UniFi
+  sensor in MB/s looked ~8000x too low and a streaming TV looked idle. All
+  Home Assistant data-rate units are now converted.
+- TVs whose firmware reports the interface name (`"wlan"`) instead of a MAC got
+  the device id `wlan` (a second such TV could not be added). New pairings use
+  the TV's MAC; existing entries are re-keyed automatically on start-up -
+  entity IDs, names, history, dashboards and automations are kept.
+
 ## [2.3.1+eco.6] - 2026-10-14
 
 ### Fixed

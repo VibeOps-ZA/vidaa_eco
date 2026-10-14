@@ -36,8 +36,12 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 from .const import (  # VIDAA Eco auto-off
-    CONF_THROUGHPUT_SENSOR,
+    CONF_THROUGHPUT_AUTO,
     CONF_THROUGHPUT_FLOOR,
+    DEFAULT_THROUGHPUT_AUTO,
+    DOCS_THROUGHPUT_URL,
+    ISSUE_THROUGHPUT_MISSING,
+    THROUGHPUT_DISCOVERY_SECONDS,
     DEFAULT_AUTO_OFF_ENABLED,
     DEFAULT_AUTO_OFF_DELAY,
     DEFAULT_THROUGHPUT_FLOOR,
@@ -52,6 +56,9 @@ from .const import (  # VIDAA Eco auto-off
     ECO_STATE_COUNTDOWN,
 )
 from .idle_logic import is_active, IdleTracker
+from . import throughput as tp
+from .identity import bare_mac
+from homeassistant.helpers import issue_registry as ir
 
 
 
@@ -164,8 +171,9 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "sw_version": info.get("tv_version"),
             "name": info.get("tv_name"),
             "ip": info.get("ip"),
-            # network_type is the device id (MAC without colons) per project convention.
-            "device_id": info.get("network_type"),
+            # network_type is the Wi-Fi MAC without colons on most firmwares, but
+            # some return the interface name ("wlan") - only keep a real MAC.
+            "device_id": bare_mac(info.get("network_type")),
         }
         self._device_info_fetched = True
         _LOGGER.debug("Cached device info: %s", self.device_data)
@@ -536,18 +544,72 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._input_listeners = []
         self._input_listeners.append(listener)
 
+    def throughput_sources(self) -> tuple[list[str], str]:
+        """(entity_ids, mode) used for in-app idle detection - see throughput.py.
+
+        Manual picks win; otherwise (if enabled) sensors auto-detected on other
+        HA devices that share this TV's MAC; otherwise none.
+        """
+        manual = tp.configured_sources(dict(self.entry.options))
+        if manual:
+            return manual, tp.MODE_MANUAL
+        if not self.entry.options.get(CONF_THROUGHPUT_AUTO, DEFAULT_THROUGHPUT_AUTO):
+            return [], tp.MODE_NONE
+        found = self.discovered_throughput_sources()
+        return (found, tp.MODE_AUTO) if found else ([], tp.MODE_NONE)
+
+    def discovered_throughput_sources(self, force: bool = False) -> list[str]:
+        """Auto-detected sources, cached for THROUGHPUT_DISCOVERY_SECONDS."""
+        now = time.monotonic()
+        cache = getattr(self, "_tp_discovery", None)
+        if force or cache is None or now - cache[0] > THROUGHPUT_DISCOVERY_SECONDS:
+            own = []
+            dev = dr.async_get(self.hass).async_get_device(
+                identifiers={(DOMAIN, self.entry.data.get(CONF_DEVICE_ID) or self.entry.entry_id)}
+            )
+            if dev:
+                own.append(dev.id)
+            try:
+                found = tp.discover_sources(self.hass, self.entry, own)
+            except Exception as err:  # noqa: BLE001 - discovery must never break polling
+                _LOGGER.debug("Throughput source discovery failed: %s", err)
+                found = []
+            cache = (now, found)
+            self._tp_discovery = cache
+        return list(cache[1])
+
     def _throughput_kbps(self):
-        """Current throughput for this TV in kbit/s, or None if not configured."""
-        sensor = self.entry.options.get(CONF_THROUGHPUT_SENSOR)
-        if not sensor:
-            return None
-        st = self.hass.states.get(sensor)
-        if st is None or st.state in ("unknown", "unavailable", "", None):
-            return None
-        try:
-            return float(st.state)
-        except (TypeError, ValueError):
-            return None
+        """Current throughput for this TV in kbit/s (sum of sources), or None."""
+        sources, mode = self.throughput_sources()
+        total, per_source = tp.read_total_kbps(self.hass, sources)
+        self.throughput = {
+            "kbps": total,
+            "mode": mode,
+            "sources": per_source,
+            "help": DOCS_THROUGHPUT_URL,
+        }
+        return total
+
+    def _update_throughput_issue(self, enabled: bool) -> None:
+        """Raise a Repairs issue while auto-off is on but no throughput source exists."""
+        missing = enabled and (getattr(self, "throughput", None) or {}).get("mode") == tp.MODE_NONE
+        if missing == getattr(self, "_tp_issue_raised", False):
+            return
+        issue_id = f"{ISSUE_THROUGHPUT_MISSING}_{self.entry.entry_id}"
+        if missing:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_THROUGHPUT_MISSING,
+                translation_placeholders={"tv": self.entry.title, "url": DOCS_THROUGHPUT_URL},
+                learn_more_url=DOCS_THROUGHPUT_URL,
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+        self._tp_issue_raised = missing
 
     def _is_active(self, data) -> bool:
         """Whether the TV is doing something a viewer would not want cut off."""
@@ -570,8 +632,11 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not data.get("is_on"):
             tracker.reset()
             self.eco_state = {"state": ECO_STATE_OFF}
+            self._throughput_kbps()  # keep the throughput sensor current
+            self._update_throughput_issue(enabled)
             return
         active = self._is_active(data)
+        self._update_throughput_issue(enabled)
         now = time.monotonic()
         action = tracker.evaluate(
             now=now,

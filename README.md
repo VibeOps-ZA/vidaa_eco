@@ -1,8 +1,15 @@
 # VIDAA Eco
 
 Control your **Hisense VIDAA** TV from [Home Assistant](https://www.home-assistant.io/) —
-power, volume, inputs, apps and every practical remote button — and let it
-**switch the TV off by itself** when it has been left on with nothing to watch.
+power, volume, inputs, apps and every practical remote button — and, if you want,
+let it **switch the TV off by itself** when it has been left on with nothing to watch.
+
+- **Just want a remote?** Pair the TV and you are done: a media player, a remote
+  entity and a button for every key, app and input, ready for dashboards, scenes
+  and voice assistants. Nothing else to set up.
+- **Want automatic power-off too?** Turn on the TV's *Auto power-off* switch and
+  give it a [network throughput sensor](#network-throughput-for-auto-power-off)
+  (usually found automatically if you use UniFi or another router integration).
 
 Everything runs on your own network. No cloud account is needed.
 
@@ -42,7 +49,8 @@ For every TV you add, VIDAA Eco creates one **device** in Home Assistant with:
 | **Remote** (remote) | Send any remote key from automations with `remote.send_command` |
 | **Activity** (sensor) | What is on screen: `YouTube`, `HDMI1`, `HDMI1 – no signal`, `TV: SABC 3`, `Inactive`, `Off` |
 | **Auto-off status** (sensor) | What automatic power-off is doing: `In use`, `HDMI1 in use – no timer`, `No signal – checking`, `Powering off in 12 min` … |
-| **Auto power-off** (switch) | Turn automatic power-off on or off for this TV |
+| **Network throughput** (diagnostic sensor) | The TV's network traffic in kbit/s as used by auto power-off, where it comes from, and a link to [the setup guide](#network-throughput-for-auto-power-off) when none is set up |
+| **Auto power-off** (switch) | Turn automatic power-off on or off for this TV (off by default) |
 | **Auto-off delay** (number) | Minutes to wait (after the TV is confirmed idle) before switching it off |
 | **Buttons** | One per remote key — Up, Down, Left, Right, OK, Back, Home, Menu, Exit, Info, Play, Pause, Stop, Rewind, Fast forward, Subtitles, Mute, Volume ±, Channel ±, Red, Green, Yellow, Blue |
 | **App buttons** | Plex, YouTube, Netflix, Prime Video |
@@ -196,7 +204,8 @@ timer simply clears.
 | An HDMI / AV input with **no signal** (nothing connected, or the device is asleep) | Yes. Many TVs also switch themselves to standby after ~15 minutes with no signal — whichever comes first wins. |
 | An HDMI / AV input with a **picture coming in** | **No** — shows "*input* in use – no timer". The TV can't tell whether you are watching a connected device, so let that device sleep (most do, and HDMI-CEC can switch the TV off with it). |
 | Live TV | No |
-| Inside an app (YouTube, Plex, …) | No — unless you add a throughput sensor (below) |
+| Inside an app (YouTube, Plex, …) playing | No |
+| Inside an app, paused or idle (traffic below the floor) | Yes — needs a [throughput sensor](#network-throughput-for-auto-power-off) |
 
 **How "signal" is detected.** The TV reports a signal flag for every input
 (`has_signal`) each time it is asked, plus a snapshot taken at the moment you
@@ -204,24 +213,62 @@ switch input. VIDAA Eco asks every poll while an input is selected and treats
 the input as in use if either says a picture is present. The input's other flag
 (`is_signal`) only marks which input is selected, so it is not used.
 
-### In-app detection with a throughput sensor (optional)
+### Network throughput (for auto power-off)
 
-Inside an app, the TV reports the same thing whether a film is playing or
-paused, so by default VIDAA Eco **never switches off while an app is open**. If
-you give it a sensor with the TV's current network traffic, it can tell: below
-the **floor** (e.g. 100 kbit/s) means nothing is streaming, so the app counts as idle.
+**Needed only if you use Auto power-off.** Inside an app the TV reports the same
+thing whether a film is playing or paused, so VIDAA Eco looks at the TV's
+**network traffic**: above the **floor** (default 100 kbit/s) means something is
+streaming; below it, the app counts as idle and the timer may start. The TV does
+not report its own traffic, so the number comes from another integration —
+usually your router or Wi-Fi system.
 
-Any sensor reporting this TV's traffic **in kbit/s** works, for example:
+Because of that, VIDAA Eco **asks for a throughput source before Auto power-off
+can be switched on**, and shows a notice in **Settings → Repairs** if one goes
+missing later.
 
-- **UniFi** – the [UniFi Network integration](https://www.home-assistant.io/integrations/unifi/)
-  can expose per-client bandwidth sensors; pick the TV's receive (RX) sensor.
-- **Router / access point via SNMP** – read the TV's byte counter with the
+#### Step 1 – make the traffic visible in Home Assistant
+
+Pick whichever matches your network:
+
+- **UniFi** (UDM, Cloud Key, UniFi OS console) –
+  [UniFi Network integration](https://www.home-assistant.io/integrations/unifi/):
+  **Settings → Devices & services → UniFi Network → Configure**, open the
+  advanced / more options section and tick the **bandwidth sensors** option
+  (*Bandwidth usage sensors for network clients*). Each client (including your
+  TV) gets an *RX* and a *TX* sensor in MB/s. Note: this creates two sensors for
+  **every** client and they update every few seconds, which grows the
+  Home Assistant database; on small systems you can disable the ones you don't
+  need, or exclude them from the [recorder](https://www.home-assistant.io/integrations/recorder/).
+  Tip: TVs on a Wi-Fi system that isn't UniFi (Ruckus, mesh kits …) still show up,
+  as "wired" clients — that works too.
+- **Other routers** that publish per-client traffic, e.g.
+  [MikroTik](https://www.home-assistant.io/integrations/mikrotik/) or OpenWrt.
+- **Anything with a byte counter** (SNMP, a managed switch port): read it with the
   [SNMP integration](https://www.home-assistant.io/integrations/snmp/) and turn it
   into a rate with a [Derivative helper](https://www.home-assistant.io/integrations/derivative/).
-- **Router integrations** that already publish client throughput (e.g.
-  [MikroTik](https://www.home-assistant.io/integrations/mikrotik/)).
 
-Set it in the TV's options (next section).
+Any **data-rate unit** works (bit/s, kbit/s, Mbit/s, kB/s, MB/s …) — VIDAA Eco
+converts it.
+
+#### Step 2 – let VIDAA Eco use it
+
+- **Automatic (default).** VIDAA Eco looks for data-rate sensors on any device
+  that has one of the TV's **MAC addresses** — that is how router integrations
+  represent clients. With UniFi there is nothing else to do. Sensors that only
+  describe a link's *speed* (e.g. "Link speed 1000 Mbit/s") are ignored.
+- **Manual.** In the TV's options (next section) pick one or more sensors under
+  **Throughput sensors (manual)**. Several sensors are **added together** — pick
+  both the Wi-Fi and the Ethernet client if your TV can use either, or a separate
+  download and upload sensor. A manual pick always wins over automatic.
+
+#### Step 3 – check it
+
+Open the TV's **Network throughput** sensor (device page → *Diagnostic*). It
+shows the current kbit/s, `mode` (`manual`, `auto` or `none`) and every source
+with its own value. Start a video: the number should jump to thousands of kbit/s;
+pause it: it should drop under the floor.
+
+![Network throughput sensor](docs/images/network-throughput-more-info.png)
 
 ---
 
@@ -234,11 +281,15 @@ Set it in the TV's options (next section).
 | **Polling interval** | How often (seconds) to ask the TV what it is doing | 30 |
 | **Wake-on-LAN MAC address** | Where to send the "wake up" packet. The TV's Ethernet and Wi-Fi addresses are listed in the dialog — if switching on doesn't work, try the other one | The TV's own |
 | **Authentication mode** | Override the scheme chosen at pairing (Auto / Dynamic / Static). Only change if the TV starts refusing connections after a firmware update | As paired |
-| **Throughput sensor** | Optional sensor with the TV's network rate in kbit/s (see above) | None |
-| **Throughput floor** | Below this rate (kbit/s) an open app counts as "nothing streaming" | 100 |
+| **Find throughput sensors automatically** | Use data-rate sensors on devices that share the TV's MAC address. The ones found are listed in the dialog | On |
+| **Throughput sensors (manual)** | One or more sensors with the TV's traffic, added together (see [Network throughput](#network-throughput-for-auto-power-off)). Required while Auto power-off is on, unless sensors were found automatically | None |
+| **Throughput floor** | Below this total rate (kbit/s) an open app counts as "nothing playing" | 100 |
 
 The **Auto power-off** switch and **Auto-off delay** number are ordinary
-entities, so you can change them from a dashboard or an automation.
+entities, so you can change them from a dashboard or an automation. Not using
+Auto power-off? Leave all throughput options alone.
+
+![Options dialog](docs/images/options-dialog.png)
 
 ---
 
@@ -297,7 +348,10 @@ Other ways to control the TV:
 | "Certificate files not found" | Check the files are in `config/certs/` with exactly the names `vidaa_client.pem` and `vidaa_client.key`. |
 | Can switch off but not on | Enable Wake-on-LAN on the TV, then try the other MAC address in the options. |
 | Buttons greyed out | The TV is off — buttons only work while it is on. |
-| Auto-off never counts down | Check the switch is on; on an input it only counts down with **no signal**; in an app only with a throughput sensor. The Activity sensor's `signal_detail` attribute shows what the TV reports. |
+| Auto-off never counts down | Check the switch is on; on an input it only counts down with **no signal**; in an app only when the **Network throughput** sensor is below the floor. The Activity sensor's `signal_detail` attribute shows what the TV reports. |
+| "Pick a network throughput sensor" when switching Auto power-off on | No throughput source found — follow [Network throughput](#network-throughput-for-auto-power-off). |
+| Network throughput shows `mode: none` | No sensor found for the TV's MACs. Check the router integration has per-client sensors enabled, or pick sensors manually. |
+| Throughput never drops when paused | Some apps keep downloading in the background; raise the **Throughput floor**. |
 | Need more detail | **Settings → Devices & services → VIDAA Eco → ⋮ → Enable debug logging**, reproduce, then download the log. |
 
 ---

@@ -59,23 +59,28 @@
   "options": {
     "step": {
       "init": {
-        "title": "Vidaa TV Options",
-        "description": "Configure options for your Vidaa TV.\n\n**MAC addresses reported by this TV**  \n{known_macs}",
+        "title": "VIDAA Eco options",
+        "description": "Settings for this TV. Everything here is optional unless you use **Auto power-off**.\n\n**MAC addresses reported by this TV**  \n{known_macs}\n\n**Network throughput (needed for Auto power-off)**  \nA TV does not report whether an open app is actually playing, so Auto power-off reads the TV's network traffic from your router integration (for example UniFi \"bandwidth sensors\" or FRITZ!Box). Sensors found automatically for this TV's MAC address:  \n{detected}\n\nNot using Auto power-off? Ignore this section - the remote, buttons and media player work without it. Step-by-step guide: [Network throughput]({docs_url})",
         "data": {
           "scan_interval": "Polling interval",
           "wol_mac": "Wake-on-LAN MAC address",
           "auth_mode": "Authentication mode",
-          "throughput_sensor": "Throughput sensor",
-          "throughput_floor_kbps": "Throughput floor"
+          "throughput_floor_kbps": "Throughput floor",
+          "throughput_auto": "Find throughput sensors automatically",
+          "throughput_sensors": "Throughput sensors (manual)"
         },
         "data_description": {
           "scan_interval": "How often to poll the TV for state updates (in seconds).",
           "wol_mac": "MAC address to send the Wake-on-LAN packet to when turning the TV on. Leave empty to use the default. A magic packet only reaches the interface the TV is actually connected on, so if turning the TV on does not work, try the other address listed above. The TV must also have Wake-on-LAN enabled in its network settings.",
           "auth_mode": "How credentials are generated. \"Auto\" detects your TV's protocol version and falls back if the TV rejects it. Choose \"Static\" if your TV runs older firmware and setup fails with a not-authorized error; \"Dynamic\" forces the newer scheme.",
-          "throughput_sensor": "Optional. A sensor reporting this TV's current network traffic in kbit/s (e.g. a UniFi client RX sensor). Lets automatic power-off tell a playing app from a paused or idle one. Leave empty and an open app never counts as idle.",
-          "throughput_floor_kbps": "Below this traffic rate (kbit/s) an open app counts as 'nothing streaming'. Only used with a throughput sensor."
+          "throughput_floor_kbps": "Below this total traffic (kbit/s) an open app counts as 'nothing playing' and the idle timer can start. 100 kbit/s suits most streaming apps; raise it if a paused app keeps trickling data.",
+          "throughput_auto": "Use the data-rate sensors that another integration (UniFi, FRITZ!Box, ...) attaches to a device with this TV's MAC address - the list above. Ignored when you pick sensors below.",
+          "throughput_sensors": "Pick one or more sensors that measure this TV's traffic (download, upload or both - they are added together). Pick both the Wi-Fi and the Ethernet client if your TV can use either. Any data-rate unit works (bit/s, kbit/s, Mbit/s, kB/s, MB/s ...). **Required while Auto power-off is on**, unless sensors were found automatically. Leave empty to use automatic detection."
         }
       }
+    },
+    "error": {
+      "throughput_required": "Auto power-off is on, but no throughput sensor was found or picked. Pick at least one sensor, or turn off the TV's Auto power-off switch first. See the guide linked above."
     }
   },
   "exceptions": {
@@ -90,6 +95,9 @@
     },
     "authentication_failed": {
       "message": "Authentication failed. Please re-pair with the TV."
+    },
+    "throughput_required": {
+      "message": "{tv}: pick a network throughput sensor in the integration options (Settings > Devices & services > VIDAA Eco > Configure) before turning on Auto power-off. Guide: {url}"
     }
   },
   "issues": {
@@ -117,6 +125,10 @@
           }
         }
       }
+    },
+    "throughput_missing": {
+      "title": "{tv}: Auto power-off has no throughput sensor",
+      "description": "Auto power-off is on for **{tv}**, but no network throughput sensor is configured or could be found. Without one, an open app (Netflix, YouTube...) never counts as idle, so the TV will only power off from the home screen or an input without signal.\n\nFix it under **Settings > Devices & services > VIDAA Eco > Configure**, or turn Auto power-off off. Step-by-step guide: [Network throughput]({url})"
     }
   },
   "services": {
@@ -157,6 +169,9 @@
       },
       "auto_off_status": {
         "name": "Auto-off status"
+      },
+      "network_throughput": {
+        "name": "Network throughput"
       }
     }
   }

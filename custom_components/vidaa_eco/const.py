@@ -97,6 +97,14 @@ CONF_AUTO_OFF_ENABLED: Final = "auto_off_enabled"
 CONF_AUTO_OFF_DELAY: Final = "auto_off_delay"          # grace MINUTES after idle confirmed
 CONF_THROUGHPUT_SENSOR: Final = "throughput_sensor"    # optional entity_id, rate in kbit/s
 CONF_THROUGHPUT_FLOOR: Final = "throughput_floor_kbps" # below this = "nothing streaming"
+CONF_THROUGHPUT_SENSORS: Final = "throughput_sensors"  # list of entity_ids, summed (replaces the single one)
+CONF_THROUGHPUT_AUTO: Final = "throughput_auto"        # find sensors on HA devices sharing the TV's MAC
+DEFAULT_THROUGHPUT_AUTO: Final = True
+# Re-scan the device/entity registries for auto-detected sources this often.
+THROUGHPUT_DISCOVERY_SECONDS: Final = 300
+# Where the README explains throughput sources (linked from options, repairs, errors).
+DOCS_THROUGHPUT_URL: Final = "https://github.com/VibeOps-ZA/vidaa_eco#network-throughput-for-auto-power-off"
+ISSUE_THROUGHPUT_MISSING: Final = "throughput_missing"
 
 DEFAULT_AUTO_OFF_ENABLED: Final = False   # opt-in: never power off a TV unless asked
 DEFAULT_AUTO_OFF_DELAY: Final = 45        # minutes of grace AFTER idle is confirmed
