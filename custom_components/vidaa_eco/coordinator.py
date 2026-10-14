@@ -510,18 +510,25 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 entry = e
                 break
         detail = {"state_is_signal": state_flag}
-        if entry is None:
-            detail["from"] = "state"
-            signal = None if state_flag is None else bool(state_flag)
-            return signal, detail
-        list_is = self._flag(entry.get("is_signal"))
-        list_has = self._flag(entry.get("has_signal"))
-        detail.update({"from": "source_list", "is_signal": list_is, "has_signal": list_has})
-        if list_is is None and list_has is None:
-            signal = None if state_flag is None else bool(state_flag)
-        else:
-            signal = bool(list_is) or bool(list_has)
-        return signal, detail
+        if sources:
+            # Every input's raw flags, for diagnostics: {"HDMI1": "is/has"}.
+            detail["inputs"] = {
+                str(e.get("sourcename") or e.get("sourceid")): f"{self._flag(e.get('is_signal'))}/{self._flag(e.get('has_signal'))}"
+                for e in sources
+            }
+        # What the flags mean (as observed on a VIDAA TV, firmware V0000.09):
+        # - source list is_signal: 1 for whichever input is SELECTED, picture
+        #   or not - so it is not a signal reading and is ignored here.
+        # - source list has_signal: whether a signal is present on that input,
+        #   refreshed on every request.
+        # - state is_signal: whether a signal was present at the moment the
+        #   input was selected (a snapshot, never refreshed).
+        # A picture counts as present if either genuine flag says so.
+        list_has = self._flag(entry.get("has_signal")) if entry else None
+        detail.update({"from": "source_list" if entry else "state", "has_signal": list_has})
+        if list_has is None and state_flag is None:
+            return None, detail
+        return bool(list_has) or bool(state_flag), detail
 
     def add_input_listener(self, listener) -> None:
         """Be told when the TV's list of physical inputs changes."""

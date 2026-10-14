@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Signal detection read a stray reply instead of the source list; the source
   list is now requested until a genuine one arrives.
 
+### Changed
+- Signal = source-list `has_signal` OR the state's switch-time `is_signal`.
+  The source list's own `is_signal` is 1 for the selected input even with
+  nothing connected, so it is not used. Every input's flags are shown in the
+  Activity sensor's `signal_detail` attribute.
+
 ## [2.3.1+eco.5] - 2026-10-14
 
 ### Added
