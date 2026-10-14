@@ -29,6 +29,7 @@ from .const import (
     CONF_HW_MAC,
     CONF_MAC_ETHERNET,
     CONF_MAC_WIFI,
+    CONF_INPUTS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,6 +104,10 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # sensor: {"state", "idle_since", "idle_minutes", "minutes_remaining",
         # "power_off_at"}. Updated on every poll, including while the TV is off.
         self.eco_state: dict[str, Any] = {"state": ECO_STATE_OFF}
+        # Physical inputs from the TV's source list (for the input buttons),
+        # seeded from what the entry remembers so they exist while the TV is off.
+        self.inputs: list[dict[str, str]] = list(entry.data.get(CONF_INPUTS) or [])
+        self._inputs_refreshed = False
 
     @property
     def available(self) -> bool:
@@ -270,6 +275,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._device_info_fetched = False
                 self._device_info_misses = 0
                 self._device_info_unsupported = False
+                self._inputs_refreshed = False
 
             self._available = True
 
@@ -373,6 +379,20 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # wrong input while the TV sits on the launcher.
                     source = ACTIVITY_HOME
 
+            # Live signal on an external input. The is_signal in the state
+            # message is a snapshot taken when the input was selected and is
+            # never refreshed, so it goes stale both ways. The TV's source list
+            # reports each input's signal afresh on every request, as is_signal
+            # and (newer firmware) has_signal; either one set means a picture
+            # is coming in. The state flag is only a fallback for TVs whose
+            # source list does not answer.
+            signal_detail = None
+            sources = None
+            if is_on and (statetype == "sourceswitch" or not self._inputs_refreshed):
+                sources = await self._async_fetch_sources()
+            if is_on and statetype == "sourceswitch":
+                is_signal, signal_detail = self._input_signal(state, sources)
+
             data = {
                 "is_on": is_on,
                 "state": state,
@@ -384,6 +404,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "channel_name": channel_name,
                 "channel_number": channel_number,
                 "is_signal": is_signal,
+                "signal_detail": signal_detail,
             }
 
             _LOGGER.debug("State data: is_on=%s, statetype=%s, volume=%s, app=%s, "
@@ -425,7 +446,81 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # "idle" is the inverse of the active-test below. A volume/mute change counts
     # as activity and resets everything. Disabled by default (opt-in switch).
 
-    def _throughput_kbps(self):
+    @staticmethod
+    def _flag(value) -> int | None:
+        """Read a TV 0/1 flag that may arrive as int, bool or string."""
+        if value is None or value == "":
+            return None
+        try:
+            return 1 if int(value) else 0
+        except (TypeError, ValueError):
+            return None
+
+    async def _async_fetch_sources(self) -> list[dict] | None:
+        """Ask the TV for its source list; remember its physical inputs."""
+        try:
+            sources = await self.tv.async_get_sources(timeout=3)
+        except Exception as err:  # noqa: BLE001 - best effort, polled again
+            _LOGGER.debug("Source list request failed: %s", err)
+            return None
+        # Replies are not topic-correlated in the library, so make sure this
+        # really is a source list before trusting it.
+        if not isinstance(sources, list) or not sources or not all(
+            isinstance(e, dict) and e.get("sourceid") is not None for e in sources
+        ):
+            _LOGGER.debug("Ignoring reply that is not a source list: %r", sources)
+            return None
+        self._inputs_refreshed = True
+        inputs = [
+            {
+                "sourceid": str(e.get("sourceid")),
+                "sourcename": str(e.get("sourcename") or e.get("sourceid")),
+                "displayname": str(e.get("displayname") or ""),
+            }
+            for e in sources
+        ]
+        if inputs != self.inputs:
+            self.inputs = inputs
+            # Persisted so the input buttons survive restarts while the TV is
+            # off. An entry.data write does not reload the integration.
+            self.hass.config_entries.async_update_entry(
+                self.entry, data={**self.entry.data, CONF_INPUTS: inputs}
+            )
+            for listener in list(getattr(self, "_input_listeners", [])):
+                listener()
+        return sources
+
+    def _input_signal(self, state: dict | None, sources: list[dict] | None):
+        """Combined signal reading for the selected input, plus the raw flags."""
+        state = state or {}
+        state_flag = self._flag(state.get("is_signal"))
+        entry = None
+        for e in sources or []:
+            if str(e.get("sourceid")) == str(state.get("sourceid")) or (
+                state.get("sourcename") and e.get("sourcename") == state.get("sourcename")
+            ):
+                entry = e
+                break
+        detail = {"state_is_signal": state_flag}
+        if entry is None:
+            detail["from"] = "state"
+            signal = None if state_flag is None else bool(state_flag)
+            return signal, detail
+        list_is = self._flag(entry.get("is_signal"))
+        list_has = self._flag(entry.get("has_signal"))
+        detail.update({"from": "source_list", "is_signal": list_is, "has_signal": list_has})
+        if list_is is None and list_has is None:
+            signal = None if state_flag is None else bool(state_flag)
+        else:
+            signal = bool(list_is) or bool(list_has)
+        return signal, detail
+
+    def add_input_listener(self, listener) -> None:
+        """Be told when the TV's list of physical inputs changes."""
+        if not hasattr(self, "_input_listeners"):
+            self._input_listeners = []
+        self._input_listeners.append(listener)
+
         """Current throughput for this TV in kbit/s, or None if not configured."""
         sensor = self.entry.options.get(CONF_THROUGHPUT_SENSOR)
         if not sensor:
@@ -482,9 +577,9 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         state: dict[str, Any] = {"state": ECO_STATE_ACTIVE}
         if not enabled:
             state["state"] = ECO_STATE_DISABLED
-        elif statetype == "sourceswitch":
-            # HDMI/external input: always in use; the TV cannot report whether
-            # a picture is present, so no idle timer ever runs here.
+        elif statetype == "sourceswitch" and active:
+            # External input with a picture coming in (or signal unknown):
+            # in use, and no idle timer runs.
             state["state"] = ECO_STATE_HDMI
         elif active or tracker.idle_since is None:
             state["state"] = ECO_STATE_ACTIVE
@@ -499,6 +594,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 state["power_off_at"] = (wall + timedelta(seconds=remaining_s)).isoformat()
             else:
                 state["state"] = ECO_STATE_IDLE
+        state["no_signal"] = statetype == "sourceswitch" and not active
         self.eco_state = state
 
     async def _async_power_off_idle(self) -> None:

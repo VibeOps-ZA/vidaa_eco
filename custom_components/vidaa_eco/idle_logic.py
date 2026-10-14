@@ -26,11 +26,14 @@ def is_active(
     if not is_on:
         return False
     if statetype == "sourceswitch":
-        # External input (HDMI): always treated as in use. The TV's is_signal
-        # flag is unreliable (some firmware reports 0 on a live HDMI picture),
-        # so the TV cannot tell an idle input from a used one. A TV left on an
-        # input is put to sleep by the source device, not by this logic.
-        return True
+        # External input (HDMI/AV). is_signal is the integration's combined
+        # signal reading for the selected input (see the coordinator):
+        #   True  -> a picture is coming in: in use, no timer
+        #   False -> nothing coming in: idle, the timer may run
+        #   None  -> unknown: treated as in use, so a picture is never cut
+        if is_signal is None:
+            return True
+        return bool(is_signal)
     if statetype in INAPP_STATETYPES:
         if throughput_kbps is None:
             return True  # cannot tell playing from paused -> assume active

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.5] - 2026-10-14
+
+### Added
+- Live signal detection on HDMI/external inputs: the TV's source list is read
+  on every poll while an input is selected; its `is_signal` or `has_signal`
+  set means a picture is coming in. Shown as the Activity `signal` attribute.
+- Input buttons (TV, HDMI1, HDMI2, ...) for every input the TV reports.
+
+### Changed
+- Auto power-off on an input: picture coming in -> "<input> in use – no timer";
+  no signal -> the normal idle check and countdown run.
+
 ## [2.3.1+eco.4] - 2026-10-14
 
 ### Changed

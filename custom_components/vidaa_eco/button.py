@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -67,6 +67,27 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddE
     coordinator = entry.runtime_data.coordinator
     async_add_entities(VidaaKeyButton(coordinator, entry, desc) for desc in BUTTONS)
 
+    # One button per physical input the TV reports (TV, HDMI1, HDMI2, AV...).
+    # The list comes from the TV's source list, remembered on the entry, so the
+    # buttons exist after a restart even while the TV is off; inputs the TV
+    # reports later are added as they appear.
+    known: set[str] = set()
+
+    @callback
+    def _add_inputs() -> None:
+        new = []
+        for item in coordinator.inputs:
+            name = item.get("sourcename") or item.get("sourceid")
+            if not name or name.lower() in known:
+                continue
+            known.add(name.lower())
+            new.append(VidaaInputButton(coordinator, entry, item))
+        if new:
+            async_add_entities(new)
+
+    _add_inputs()
+    coordinator.add_input_listener(_add_inputs)
+
 
 class VidaaKeyButton(CoordinatorEntity, ButtonEntity):
     """Press a remote key or launch an app on the TV."""
@@ -97,3 +118,41 @@ class VidaaKeyButton(CoordinatorEntity, ButtonEntity):
             await self.coordinator.async_launch_app(self._desc.app)
         else:
             await self.coordinator.async_send_key(self._desc.tv_key)
+
+
+class VidaaInputButton(CoordinatorEntity, ButtonEntity):
+    """Switch the TV to one of its physical inputs."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:video-input-hdmi"
+
+    def __init__(self, coordinator, entry, item: dict) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._sourcename = item.get("sourcename") or item.get("sourceid")
+        did = entry.data.get(CONF_DEVICE_ID)
+        slug = "".join(c if c.isalnum() else "_" for c in self._sourcename.lower())
+        self._attr_unique_id = f"{did or entry.entry_id}_input_{slug}"
+        self._attr_name = self._sourcename
+        if self._sourcename.upper() == "TV":
+            self._attr_name = "TV input"
+            self._attr_icon = "mdi:television-classic"
+        elif self._sourcename.upper().startswith("AV"):
+            self._attr_icon = "mdi:video-input-component"
+        label = item.get("displayname")
+        self._attr_extra_state_attributes = {
+            "sourceid": item.get("sourceid"),
+            "label_on_tv": label if label and label != self._sourcename else None,
+        }
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        did = self._entry.data.get(CONF_DEVICE_ID) or self._entry.entry_id
+        return DeviceInfo(identifiers={(DOMAIN, did)})
+
+    @property
+    def available(self) -> bool:
+        return bool((self.coordinator.data or {}).get("is_on"))
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_select_source(self._sourcename)

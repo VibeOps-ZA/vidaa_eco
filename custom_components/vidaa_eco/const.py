@@ -30,6 +30,9 @@ CONF_KEYFILE: Final = "keyfile"
 # Turning this off lets those TVs pair without client certificates.
 CONF_USE_SSL: Final = "use_ssl"
 CONF_AUTH_MODE: Final = "auth_mode"
+# The TV's physical inputs (TV, HDMI1.., AV), remembered from its source list so
+# the input buttons exist even while the TV is off.
+CONF_INPUTS: Final = "inputs"
 
 # Credential scheme. "auto" detects the TV's protocol version and falls back
 # through the other methods if it rejects the credentials; "static" forces the

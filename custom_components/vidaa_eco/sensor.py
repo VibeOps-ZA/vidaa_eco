@@ -89,6 +89,11 @@ class VidaaEcoStateSensor(_VidaaSensorBase):
         status = eco.get("state", ECO_STATE_OFF)
         if status == ECO_STATE_COUNTDOWN:
             return f"Powering off in {eco.get('minutes_remaining', 0)} min"
+        if status == ECO_STATE_HDMI:
+            source = (self.coordinator.data or {}).get("source") or "Input"
+            return f"{source} in use – no timer"
+        if status == ECO_STATE_IDLE and eco.get("no_signal"):
+            return "No signal – checking"
         return STATUS_TEXT.get(status, status)
 
     @property
@@ -124,11 +129,23 @@ class VidaaActivitySensor(_VidaaSensorBase):
         data = self.coordinator.data or {}
         return {
             "statetype": data.get("statetype"),
+            "signal": _signal_text(data),
+            "signal_detail": data.get("signal_detail"),
             "app": data.get("app"),
             "source": data.get("source"),
             "channel_name": data.get("channel_name"),
             "channel_number": data.get("channel_number"),
         }
+
+
+def _signal_text(data: dict) -> str | None:
+    """'yes' / 'no' while on an external input, else None."""
+    if not data.get("is_on") or data.get("statetype") != "sourceswitch":
+        return None
+    signal = data.get("is_signal")
+    if signal is None:
+        return "unknown"
+    return "yes" if signal else "no"
 
 
 def _activity(data: dict) -> str:
@@ -139,7 +156,8 @@ def _activity(data: dict) -> str:
     if statetype == "app":
         return data.get("app") or data.get("source") or "App"
     if statetype == "sourceswitch":
-        return data.get("source") or "Input"
+        source = data.get("source") or "Input"
+        return f"{source} – no signal" if data.get("is_signal") is False else source
     if statetype == "livetv":
         channel = data.get("channel_name")
         return f"TV: {channel}" if channel else "Live TV"
