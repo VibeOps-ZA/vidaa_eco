@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Network throughput: note that AirPlay / casting / DLNA between devices on the
+  same Wi-Fi never reaches the router, and how to add a Wi-Fi-side source
+  (Ruckus Client Throughput companion integration). Sources are summed.
+
 ## [2.3.1+eco.8] - 2026-10-14
 
 ### Added

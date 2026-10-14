@@ -244,11 +244,22 @@ Pick whichever matches your network:
   need, or exclude them from the [recorder](https://www.home-assistant.io/integrations/recorder/).
   Tip: TVs on a Wi-Fi system that isn't UniFi (Ruckus, mesh kits …) still show up,
   as "wired" clients — that works too.
+- **Ruckus Unleashed / ZoneDirector Wi-Fi** – the companion integration
+  *Ruckus Client Throughput* (VibeOps-ZA, not published yet) adds a
+  *Wi-Fi throughput* sensor per chosen client from the access points' own
+  counters. Those counters refresh about once a minute, so it reacts within
+  ~1 minute.
 - **Other routers** that publish per-client traffic, e.g.
   [MikroTik](https://www.home-assistant.io/integrations/mikrotik/) or OpenWrt.
 - **Anything with a byte counter** (SNMP, a managed switch port): read it with the
   [SNMP integration](https://www.home-assistant.io/integrations/snmp/) and turn it
   into a rate with a [Derivative helper](https://www.home-assistant.io/integrations/derivative/).
+
+> **AirPlay, casting and DLNA from a phone on the same Wi-Fi:** that traffic goes
+> phone → access point → TV and never passes the router, so a router-based sensor
+> (UniFi, MikroTik …) reads ~0 while you stream. If you do that, add a source from
+> the **Wi-Fi system** too (e.g. Ruckus above). VIDAA Eco adds all sources together,
+> so router + Wi-Fi sensors side by side is fine.
 
 Any **data-rate unit** works (bit/s, kbit/s, Mbit/s, kB/s, MB/s …) — VIDAA Eco
 converts it.
