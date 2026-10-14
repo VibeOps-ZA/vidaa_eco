@@ -458,17 +458,24 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_fetch_sources(self) -> list[dict] | None:
         """Ask the TV for its source list; remember its physical inputs."""
-        try:
-            sources = await self.tv.async_get_sources(timeout=3)
-        except Exception as err:  # noqa: BLE001 - best effort, polled again
-            _LOGGER.debug("Source list request failed: %s", err)
-            return None
-        # Replies are not topic-correlated in the library, so make sure this
-        # really is a source list before trusting it.
-        if not isinstance(sources, list) or not sources or not all(
-            isinstance(e, dict) and e.get("sourceid") is not None for e in sources
-        ):
-            _LOGGER.debug("Ignoring reply that is not a source list: %r", sources)
+        # The library hands a request whichever reply arrives next, not the one
+        # on the matching topic - a late volume reply from the poll just before
+        # is the usual stray. So only a genuine source list is accepted, and
+        # the request is repeated (cheaply) until one turns up.
+        sources = None
+        for attempt in range(3):
+            try:
+                reply = await self.tv.async_get_sources(timeout=2)
+            except Exception as err:  # noqa: BLE001 - best effort, polled again
+                _LOGGER.debug("Source list request failed: %s", err)
+                return None
+            if isinstance(reply, list) and reply and all(
+                isinstance(e, dict) and e.get("sourceid") is not None for e in reply
+            ):
+                sources = reply
+                break
+            _LOGGER.debug("Attempt %d: ignoring reply that is not a source list: %r", attempt + 1, reply)
+        if sources is None:
             return None
         self._inputs_refreshed = True
         inputs = [
