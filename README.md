@@ -31,11 +31,14 @@ Everything runs on your own network. No cloud account is needed.
 4. [Add your TV (pairing)](#add-your-tv-pairing)
 5. [Entities explained](#entities-explained)
 6. [Automatic power-off explained](#automatic-power-off-explained)
+   - [Network throughput](#network-throughput-for-auto-power-off)
 7. [Options (after setup)](#options-after-setup)
 8. [A remote-control dashboard](#a-remote-control-dashboard)
 9. [Using it in automations and scenes](#using-it-in-automations-and-scenes)
-10. [Troubleshooting](#troubleshooting)
-11. [Credits & licence](#credits--licence)
+10. [Playing media on the TV](#playing-media-on-the-tv)
+11. [How the TV's power state is detected](#how-the-tvs-power-state-is-detected)
+12. [Troubleshooting](#troubleshooting)
+13. [Credits & licence](#credits--licence)
 
 ---
 
@@ -45,7 +48,7 @@ For every TV you add, VIDAA Eco creates one **device** in Home Assistant with:
 
 | Entity | What it does |
 |---|---|
-| **TV** (media player) | On/off (including Wake-on-LAN), volume, mute, input and app selection, play/pause |
+| **TV** (media player) | On/off (including Wake-on-LAN), volume, mute, input and app selection, play/pause, and **play media** (music, videos, pictures, TTS) from Home Assistant's media browser via the TV's built-in DLNA player |
 | **Remote** (remote) | Send any remote key from automations with `remote.send_command` |
 | **Activity** (sensor) | What is on screen: `YouTube`, `HDMI1`, `HDMI1 – no signal`, `TV: SABC 3`, `Inactive`, `Off` |
 | **Auto-off status** (sensor) | What automatic power-off is doing: `In use`, `HDMI1 in use – no timer`, `No signal – checking`, `Powering off in 12 min` … |
@@ -338,7 +341,57 @@ Other ways to control the TV:
 
 - **Media player actions** – `media_player.turn_on`, `turn_off`, `volume_set`,
   `select_source` (inputs and app names from the TV's list).
+- **Play media** – see [Playing media on the TV](#playing-media-on-the-tv).
 - **Remote** – `remote.send_command` with any key, e.g. `KEY_OK`, `KEY_RETURNS`.
+
+---
+
+## Playing media on the TV
+
+VIDAA TVs have a built-in **DLNA media player**. VIDAA Eco uses it so you can
+send music, videos and pictures from Home Assistant straight to the TV:
+
+- **Media browser:** open the TV's media player card → **Browse media** and pick
+  anything from *My media*, *Text-to-speech*, *Radio Browser*, cameras and so on
+  ([Media source docs](https://www.home-assistant.io/integrations/media_source/)).
+- **From an automation:**
+
+  ```yaml
+  actions:
+    - action: media_player.play_media
+      target:
+        entity_id: media_player.study_tv
+      data:
+        media_content_id: "https://example.com/video.mp4"   # or a media-source:// id
+        media_content_type: video
+  ```
+
+- `media_content_type: app` with an app name still launches that app (e.g.
+  `YouTube`).
+
+Notes: the TV must be **on**. It plays common formats (MP4/H.264, MP3, AAC, JPEG …);
+streams that need a login (Netflix etc.) can't be sent this way — open the app
+instead. The TV's DLNA address changes on every restart, so VIDAA Eco picks it
+up automatically from the TV's network announcements.
+
+---
+
+## How the TV's power state is detected
+
+- **Polling:** every *Polling interval* (default 30 s) while the TV is reachable.
+- **Instantly from the TV's announcements:** VIDAA TVs announce themselves on the
+  network (SSDP) when they wake up and often say goodbye when they go to standby.
+  VIDAA Eco listens for that and checks the TV immediately, so on/off shows up
+  seconds sooner.
+- **Sleeping TVs are left alone.** Some TVs drop off the network completely in
+  standby. After 3 unanswered checks VIDAA Eco stops trying to reconnect and only
+  re-checks **every 15 minutes** as a safety net, instead of knocking every few
+  seconds all night. Any announcement from the TV, or switching it on from Home
+  Assistant, brings normal polling straight back.
+- **Switching on (Wake-on-LAN):** the "wake up" packet is sent to **every** MAC
+  address the TV has reported (Wi-Fi and Ethernet), so it still works if you
+  move the TV from Wi-Fi to a cable or back. Set *Wake-on-LAN MAC address* in the
+  options to put a specific one first.
 
 ---
 
@@ -350,6 +403,8 @@ Other ways to control the TV:
 | No PIN appears on the TV | The TV must be on its home screen. Close the dialog, wait 30 s, try again. |
 | "Certificate files not found" | Check the files are in `config/certs/` with exactly the names `vidaa_client.pem` and `vidaa_client.key`. |
 | Can switch off but not on | Enable Wake-on-LAN on the TV, then try the other MAC address in the options. |
+| "has not announced its media renderer yet" when playing media | The TV is off or hasn't announced itself since Home Assistant started — switch it on and try again a few seconds later. |
+| TV shows off for a while after switching it on with its own remote | Normally the TV's announcement is picked up within seconds; if your network blocks multicast (SSDP), the 15-minute safety-net check catches it. |
 | Buttons greyed out | The TV is off — buttons only work while it is on. |
 | Auto-off never counts down | Check the switch is on; on an input it only counts down with **no signal**; in an app only when the **Network throughput** sensor is below the floor. The Activity sensor's `signal_detail` attribute shows what the TV reports. |
 | "Pick a network throughput sensor" when switching Auto power-off on | No throughput source found — follow [Network throughput](#network-throughput-for-auto-power-off). |

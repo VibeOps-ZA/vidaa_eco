@@ -126,3 +126,15 @@ ECO_STATE_COUNTDOWN: Final = "countdown"  # idle confirmed; user grace delay run
 ECO_STATES: Final = [
     ECO_STATE_OFF, ECO_STATE_DISABLED, ECO_STATE_ACTIVE, ECO_STATE_HDMI, ECO_STATE_IDLE, ECO_STATE_COUNTDOWN,
 ]
+
+# --- Asleep / offline handling (network friendliness) ---
+# A TV in deep sleep drops off the network. Polling it every scan interval made
+# Home Assistant retry (and ARP for it) every few seconds all night. After
+# OFFLINE_AFTER_MISSES unreachable polls in a row the integration stops trying
+# and only re-checks every OFFLINE_RETRY_SECONDS as an emergency catch-all.
+# A sign of life brings it straight back: the TV's own SSDP announcement
+# ("I'm here" / "bye") or a turn-on from Home Assistant.
+OFFLINE_AFTER_MISSES: Final = 3
+OFFLINE_RETRY_SECONDS: Final = 900       # 15 min catch-all while asleep
+WAKE_WINDOW_SECONDS: Final = 180         # poll normally this long after a wake hint
+

@@ -57,6 +57,8 @@ from .const import (  # VIDAA Eco auto-off
 )
 from .idle_logic import is_active, IdleTracker
 from . import throughput as tp
+from . import dlna
+from .const import OFFLINE_AFTER_MISSES, OFFLINE_RETRY_SECONDS, WAKE_WINDOW_SECONDS
 from .identity import bare_mac
 from homeassistant.helpers import issue_registry as ir
 
@@ -256,6 +258,11 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         try:
             # Check connection
+            if not self.tv.is_connected and self._asleep_backoff_active():
+                # Deep-sleep TV: don't hammer it (see OFFLINE_* in const.py).
+                data = self._powered_off_data()
+                self._evaluate_auto_off(data)
+                return data
             if not self.tv.is_connected:
                 _LOGGER.debug("TV disconnected, rebuilding client and reconnecting")
                 # Rebuild the client so saved-token status is re-evaluated; an
@@ -274,6 +281,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # power-off and dropped the remote entity to unavailable
                     # for as long as the TV stayed off.
                     _LOGGER.debug("TV is not reachable; reporting it as off")
+                    self._note_unreachable()
                     data = self._powered_off_data()
                     self._evaluate_auto_off(data)
                     return data
@@ -287,6 +295,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._inputs_refreshed = False
 
             self._available = True
+            self._offline_misses = 0
 
             # Renew the access token before it lapses while connected.
             await self._async_maybe_refresh_token()
@@ -714,8 +723,62 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             targets.append(":".join(flat[i:i + 2] for i in range(0, 12, 2)))
         return targets
 
+    # --- asleep back-off, SSDP hints and DLNA -------------------------------
+
+    def _asleep_backoff_active(self) -> bool:
+        """True while a sleeping TV should be left alone (no reconnect attempt)."""
+        now = time.monotonic()
+        if now < getattr(self, "_wake_until", 0.0):
+            return False
+        if getattr(self, "_offline_misses", 0) < OFFLINE_AFTER_MISSES:
+            return False
+        return now < getattr(self, "_next_offline_attempt", 0.0)
+
+    def _note_unreachable(self) -> None:
+        self._offline_misses = getattr(self, "_offline_misses", 0) + 1
+        if self._offline_misses >= OFFLINE_AFTER_MISSES:
+            if self._offline_misses == OFFLINE_AFTER_MISSES:
+                _LOGGER.debug(
+                    "%s looks asleep; re-checking every %ss or on its next SSDP announcement",
+                    self.entry.title, OFFLINE_RETRY_SECONDS,
+                )
+            self._next_offline_attempt = time.monotonic() + OFFLINE_RETRY_SECONDS
+
+    def wake_hint(self, reason: str) -> None:
+        """Something suggests the TV is (about to be) awake: poll it now and keep polling."""
+        _LOGGER.debug("%s wake hint: %s", self.entry.title, reason)
+        self._next_offline_attempt = 0.0
+        self._wake_until = time.monotonic() + WAKE_WINDOW_SECONDS
+        self.hass.async_create_task(self.async_request_refresh())
+
+    async def async_ssdp_seen(self, location: str | None, change: str) -> None:
+        """The TV announced itself (alive/update) or said goodbye over SSDP.
+
+        Either way its power state probably changed, so check it right away
+        instead of waiting for the next poll. Also remember the DLNA renderer
+        location, whose port changes on every boot.
+        """
+        if location:
+            self.dlna_location = location
+        if "byebye" in change.lower():
+            # Going to standby: refresh now so "off" shows up immediately.
+            self.hass.async_create_task(self.async_request_refresh())
+        else:
+            self.wake_hint(f"SSDP {change}")
+
+    async def async_play_url(self, url: str, title: str, mime_type: str | None = None) -> None:
+        """Play a URL on the TV through its DLNA renderer."""
+        host = self.entry.data.get(CONF_HOST)
+        location = getattr(self, "dlna_location", None) or await dlna.async_find_location(self.hass, host)
+        if not location:
+            raise HomeAssistantError(
+                f"{self.entry.title} has not announced its media renderer yet - is the TV on?"
+            )
+        await dlna.async_play_url(self.hass, location, url, title, mime_type)
+
     async def async_turn_on(self) -> None:
         """Turn TV on using WoL and power command."""
+        self.wake_hint("turn on")
         targets = self._wol_targets()
         if targets:
             # Derive a /24 broadcast subnet only for a real IPv4 host.

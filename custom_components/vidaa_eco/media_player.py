@@ -5,8 +5,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.components import media_source
 from homeassistant.components.media_player import (
+    BrowseMedia,
     MediaPlayerDeviceClass,
+    async_process_play_media_url,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
@@ -74,6 +77,7 @@ class VidaaTVMediaPlayer(CoordinatorEntity[VidaaTVDataUpdateCoordinator], MediaP
         | MediaPlayerEntityFeature.PAUSE
         | MediaPlayerEntityFeature.STOP
         | MediaPlayerEntityFeature.PLAY_MEDIA
+        | MediaPlayerEntityFeature.BROWSE_MEDIA
     )
 
     def __init__(
@@ -448,9 +452,33 @@ class VidaaTVMediaPlayer(CoordinatorEntity[VidaaTVDataUpdateCoordinator], MediaP
     async def async_play_media(
         self, media_type: str, media_id: str, **kwargs: Any
     ) -> None:
-        """Play media - used for launching apps."""
+        """Play media.
+
+        - ``media_type: app`` launches a TV app by name (as before).
+        - Anything else is played through the TV's built-in DLNA renderer:
+          a ``media-source://`` item from the media browser (local media,
+          TTS, cameras ...) or a direct http(s) URL to an audio/video/image file.
+        """
         if media_type == "app":
             await self.coordinator.async_launch_app(media_id)
-        elif media_type == "channel":
-            # Could implement channel switching here
-            pass
+            return
+        if media_type == "channel":
+            return
+        mime_type = None
+        title = kwargs.get("extra", {}).get("title") if isinstance(kwargs.get("extra"), dict) else None
+        if media_source.is_media_source_id(media_id):
+            play_item = await media_source.async_resolve_media(self.hass, media_id, self.entity_id)
+            media_id = play_item.url
+            mime_type = play_item.mime_type
+        media_id = async_process_play_media_url(self.hass, media_id)
+        await self.coordinator.async_play_url(media_id, title or "Home Assistant", mime_type)
+
+    async def async_browse_media(
+        self, media_content_type: str | None = None, media_content_id: str | None = None
+    ) -> BrowseMedia:
+        """Media browser: Home Assistant media sources the TV can play (audio/video/images)."""
+        return await media_source.async_browse_media(
+            self.hass,
+            media_content_id,
+            content_filter=lambda item: item.media_content_type.startswith(("audio/", "video/", "image/")),
+        )

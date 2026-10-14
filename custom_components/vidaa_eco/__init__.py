@@ -72,6 +72,30 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+async def _async_watch_ssdp(hass: HomeAssistant, entry: ConfigEntry, coordinator) -> None:
+    """Subscribe to SSDP alive/update/byebye messages from this TV's IP."""
+    try:
+        from homeassistant.components import ssdp
+    except ImportError:  # pragma: no cover
+        return
+    from .dlna import location_host
+
+    host = entry.data[CONF_HOST]
+
+    async def _on_ssdp(info, change) -> None:
+        location = getattr(info, "ssdp_location", None)
+        if location_host(location) != host:
+            return
+        await coordinator.async_ssdp_seen(location, str(getattr(change, "name", change)))
+
+    try:
+        cancel = await ssdp.async_register_callback(hass, _on_ssdp, None)
+    except Exception as err:  # noqa: BLE001 - SSDP not loaded: polling still works
+        _LOGGER.debug("SSDP watch not available: %s", err)
+        return
+    entry.async_on_unload(cancel)
+
+
 def _async_migrate_device_id(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Replace an invalid device_id (e.g. "wlan") with the TV's MAC, keeping everything.
 
@@ -180,6 +204,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaTVConfigEntry) -> b
 
     # Register update listener for options
     entry.async_on_unload(entry.add_update_listener(async_update_options))
+
+    # Instant on/off: react to the TV's own SSDP announcements instead of
+    # waiting for the next poll (and to wake from the asleep back-off).
+    await _async_watch_ssdp(hass, entry, coordinator)
 
     # Backfill the TV's hardware MAC for entries paired before it was stored.
     # Without it, Wake-on-LAN has nothing to aim at on TVs that never answer

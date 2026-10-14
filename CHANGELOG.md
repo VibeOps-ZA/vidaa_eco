@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.8] - 2026-10-14
+
+### Added
+- **Play media** through the TV's built-in DLNA renderer: Home Assistant's media
+  browser (local media, TTS, radio, cameras ...) and `media_player.play_media`
+  with a URL or `media-source://` id. The renderer address (its port changes on
+  every boot) is taken from the TV's own SSDP announcements.
+- **Instant on/off**: the TV's SSDP alive/update/byebye announcements trigger an
+  immediate state check instead of waiting for the next poll.
+
+### Changed
+- **Sleeping TVs are no longer hammered**: after 3 unanswered polls the
+  integration stops reconnecting and only re-checks every 15 minutes as a
+  catch-all. An SSDP announcement or a turn-on resumes normal polling at once.
+  (A deep-sleeping TV was previously retried every few seconds all night -
+  ~1,400 ARP requests an hour.)
+- Manifest: depends on `ssdp`; `media_source` as an after-dependency.
+
+### Docs
+- README: "Playing media on the TV" and "How the TV's power state is detected"
+  (polling, SSDP, sleep back-off, Wake-on-LAN to every known MAC).
+
 ## [2.3.1+eco.7] - 2026-10-14
 
 ### Added

@@ -1,11 +1,16 @@
 {
   "domain": "vidaa_eco",
   "name": "VIDAA Eco",
+  "after_dependencies": [
+    "media_source"
+  ],
   "codeowners": [
     "@VibeOps-ZA"
   ],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+    "ssdp"
+  ],
   "documentation": "https://github.com/VibeOps-ZA/vidaa_eco",
   "integration_type": "device",
   "iot_class": "local_push",
@@ -18,5 +23,5 @@
       "st": "urn:schemas-upnp-org:device:MediaRenderer:1"
     }
   ],
-  "version": "2.3.1+eco.7"
+  "version": "2.3.1+eco.8"
 }
