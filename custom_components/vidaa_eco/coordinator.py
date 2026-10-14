@@ -60,6 +60,7 @@ from . import throughput as tp
 from . import dlna
 from .const import OFFLINE_AFTER_MISSES, OFFLINE_RETRY_SECONDS, WAKE_WINDOW_SECONDS
 from .identity import bare_mac
+from .registry_compat import own_device
 from homeassistant.helpers import issue_registry as ir
 
 
@@ -186,9 +187,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # applies device_data via DeviceInfo.
         device_registry = dr.async_get(self.hass)
         identifier = self.entry.data.get(CONF_DEVICE_ID) or self.entry.entry_id
-        device_entry = device_registry.async_get_device(
-            identifiers={(DOMAIN, identifier)}
-        )
+        device_entry = own_device(device_registry, DOMAIN, identifier, self.entry.entry_id)
         if device_entry:
             updates = {}
             if self.device_data["model"] and self.device_data["model"] != device_entry.model:
@@ -573,8 +572,9 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         cache = getattr(self, "_tp_discovery", None)
         if force or cache is None or now - cache[0] > THROUGHPUT_DISCOVERY_SECONDS:
             own = []
-            dev = dr.async_get(self.hass).async_get_device(
-                identifiers={(DOMAIN, self.entry.data.get(CONF_DEVICE_ID) or self.entry.entry_id)}
+            dev = own_device(
+                dr.async_get(self.hass), DOMAIN,
+                self.entry.data.get(CONF_DEVICE_ID) or self.entry.entry_id, self.entry.entry_id,
             )
             if dev:
                 own.append(dev.id)

@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ~1,400 ARP requests an hour.)
 - Manifest: depends on `ssdp`; `media_source` as an after-dependency.
 
+### Fixed
+- Device-registry calls deprecated in Home Assistant 2026.x (removal 2027.8-2027.10):
+  `async_get_device`, `DeviceRegistry.devices` as a mapping and
+  `DeviceEntry.config_entries`. New `registry_compat.py` uses the new API and
+  falls back on older Home Assistant versions.
+
 ### Docs
 - README: "Playing media on the TV" and "How the TV's power state is detected"
   (polling, SSDP, sleep back-off, Wake-on-LAN to every known MAC).

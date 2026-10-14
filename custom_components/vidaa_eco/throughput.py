@@ -111,18 +111,13 @@ def discover_sources(hass, entry, own_device_ids: Iterable[str] = ()) -> list[st
     if not macs:
         return []
     own = set(own_device_ids)
+    from .registry_compat import device_owned_by, devices_with_macs
+
     dev_reg = dr.async_get(hass)
     ent_reg = er.async_get(hass)
     found: list[str] = []
-    for device in dev_reg.devices.values():
-        if device.id in own or entry.entry_id in device.config_entries:
-            continue
-        conn_macs = {
-            normalize_mac(value)
-            for kind, value in device.connections
-            if kind == dr.CONNECTION_NETWORK_MAC
-        }
-        if not conn_macs & macs:
+    for device in devices_with_macs(dev_reg, macs):
+        if device.id in own or device_owned_by(device, entry.entry_id):
             continue
         for ent in er.async_entries_for_device(ent_reg, device.id):
             if ent.domain != "sensor" or ent.disabled_by is not None:
