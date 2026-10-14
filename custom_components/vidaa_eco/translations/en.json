@@ -64,12 +64,16 @@
         "data": {
           "scan_interval": "Polling interval",
           "wol_mac": "Wake-on-LAN MAC address",
-          "auth_mode": "Authentication mode"
+          "auth_mode": "Authentication mode",
+          "throughput_sensor": "Throughput sensor",
+          "throughput_floor_kbps": "Throughput floor"
         },
         "data_description": {
           "scan_interval": "How often to poll the TV for state updates (in seconds).",
           "wol_mac": "MAC address to send the Wake-on-LAN packet to when turning the TV on. Leave empty to use the default. A magic packet only reaches the interface the TV is actually connected on, so if turning the TV on does not work, try the other address listed above. The TV must also have Wake-on-LAN enabled in its network settings.",
-          "auth_mode": "How credentials are generated. \"Auto\" detects your TV's protocol version and falls back if the TV rejects it. Choose \"Static\" if your TV runs older firmware and setup fails with a not-authorized error; \"Dynamic\" forces the newer scheme."
+          "auth_mode": "How credentials are generated. \"Auto\" detects your TV's protocol version and falls back if the TV rejects it. Choose \"Static\" if your TV runs older firmware and setup fails with a not-authorized error; \"Dynamic\" forces the newer scheme.",
+          "throughput_sensor": "Optional. A sensor reporting this TV's current network traffic in kbit/s (e.g. a UniFi client RX sensor). Lets automatic power-off tell a playing app from a paused or idle one. Leave empty and an open app never counts as idle.",
+          "throughput_floor_kbps": "Below this traffic rate (kbit/s) an open app counts as 'nothing streaming'. Only used with a throughput sensor."
         }
       }
     }

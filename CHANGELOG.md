@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Signal detection read a stray reply instead of the source list; the source
   list is now requested until a genuine one arrives.
 
+### Docs
+- Beginner-friendly README (requirements, install, pairing, every entity and
+  option explained), remote-style dashboard guide (`docs/dashboard.md`) with
+  example YAML, and screenshots. Labels for the throughput options.
+
 ### Changed
 - Signal = source-list `has_signal` OR the state's switch-time `is_signal`.
   The source list's own `is_signal` is 1 for the selected input even with

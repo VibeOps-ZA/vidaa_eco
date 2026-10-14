@@ -1,0 +1,527 @@
+# VIDAA Eco - example "TV Remotes" dashboard (one view per TV).
+# Built only from Home Assistant's own cards - nothing extra to install.
+#
+# How to use: see docs/dashboard.md. In short: create a new dashboard, open its
+# raw configuration editor, paste this file, then replace every
+#   living_room_tv          with your TV's entity prefix (e.g. bedroom_tv)
+#   media_player.living_room_tv   with your TV's media player entity.
+# To add a second TV, copy the whole view (from "- title:" down) and repeat.
+title: TV Remotes
+views:
+- title: Living Room TV
+  path: living-room
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: Living Room TV
+      icon: "mdi:television"
+    - type: tile
+      entity: media_player.living_room_tv
+      name: TV
+      features:
+      - type: media-player-volume-slider
+      features_position: bottom
+    - type: tile
+      entity: sensor.living_room_tv_activity
+      name: Activity
+      grid_options:
+        columns: 6
+    - type: tile
+      entity: sensor.living_room_tv_auto_off_status
+      name: Auto-off
+      grid_options:
+        columns: 6
+    - type: heading
+      heading: Apps
+      icon: "mdi:apps"
+      heading_style: subtitle
+    - type: grid
+      columns: 4
+      square: false
+      cards:
+      - type: button
+        entity: button.living_room_tv_plex
+        name: Plex
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_plex
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_youtube
+        name: YouTube
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_youtube
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_netflix
+        name: Netflix
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_netflix
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_prime_video
+        name: Prime
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_prime_video
+        hold_action:
+          action: none
+    - type: heading
+      heading: Inputs
+      icon: "mdi:video-input-hdmi"
+      heading_style: subtitle
+    - type: grid
+      columns: 3
+      square: false
+      cards:
+      - type: button
+        entity: button.living_room_tv_hdmi1
+        name: HDMI 1
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_hdmi1
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_hdmi2
+        name: HDMI 2
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_hdmi2
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_hdmi3
+        name: HDMI 3
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_hdmi3
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_tv_input
+        name: TV
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_tv_input
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_av
+        name: AV
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_av
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_music_sharing
+        name: Music
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_music_sharing
+        hold_action:
+          action: none
+  - type: grid
+    cards:
+    - type: heading
+      heading: Remote
+      icon: "mdi:remote-tv"
+    - type: grid
+      columns: 4
+      square: false
+      cards:
+      - type: button
+        entity: media_player.living_room_tv
+        name: Power
+        icon: "mdi:power"
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: toggle
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_home
+        name: Home
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_home
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_mute
+        name: Mute
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_mute
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_subtitles
+        name: Subtitles
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_subtitles
+        hold_action:
+          action: none
+    - type: grid
+      columns: 3
+      square: false
+      cards:
+      - type: button
+        entity: button.living_room_tv_menu
+        name: Menu
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_menu
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_up
+        name: Up
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_up
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_info
+        name: Info
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_info
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_left
+        name: Left
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_left
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_ok
+        name: OK
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_ok
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_right
+        name: Right
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_right
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_back
+        name: Back
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_back
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_down
+        name: Down
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_down
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_exit
+        name: Exit
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_exit
+        hold_action:
+          action: none
+    - type: grid
+      columns: 2
+      square: false
+      cards:
+      - type: button
+        entity: button.living_room_tv_volume_up
+        name: Vol +
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_volume_up
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_channel_up
+        name: Ch +
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_channel_up
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_volume_down
+        name: Vol −
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_volume_down
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_channel_down
+        name: Ch −
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_channel_down
+        hold_action:
+          action: none
+    - type: grid
+      columns: 5
+      square: false
+      cards:
+      - type: button
+        entity: button.living_room_tv_rewind
+        name: Rew
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_rewind
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_play
+        name: Play
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_play
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_pause
+        name: Pause
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_pause
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_stop
+        name: Stop
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_stop
+        hold_action:
+          action: none
+      - type: button
+        entity: button.living_room_tv_fast_forward
+        name: FF
+        show_state: false
+        icon_height: 32px
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_fast_forward
+        hold_action:
+          action: none
+    - type: grid
+      columns: 4
+      square: false
+      cards:
+      - type: tile
+        entity: button.living_room_tv_red
+        name: Red
+        color: red
+        icon: "mdi:square-rounded"
+        hide_state: true
+        vertical: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_red
+      - type: tile
+        entity: button.living_room_tv_green
+        name: Green
+        color: green
+        icon: "mdi:square-rounded"
+        hide_state: true
+        vertical: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_green
+      - type: tile
+        entity: button.living_room_tv_yellow
+        name: Yellow
+        color: yellow
+        icon: "mdi:square-rounded"
+        hide_state: true
+        vertical: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_yellow
+      - type: tile
+        entity: button.living_room_tv_blue
+        name: Blue
+        color: blue
+        icon: "mdi:square-rounded"
+        hide_state: true
+        vertical: true
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target:
+            entity_id: button.living_room_tv_blue
+  - type: grid
+    cards:
+    - type: heading
+      heading: Auto power-off
+      icon: "mdi:power-sleep"
+    - type: tile
+      entity: switch.living_room_tv_auto_power_off
+      name: Auto power-off
+    - type: tile
+      entity: number.living_room_tv_auto_off_delay
+      name: Delay after idle
+      features:
+      - type: numeric-input
+        style: buttons
+      features_position: bottom
+    - type: markdown
+      text_only: true
+      content: "A TV counts as **idle** at the home screen, in settings, or on an input with **no signal**.\
+        \ After 15 min idle the delay above starts; when it runs out the TV is switched off. An input\
+        \ with a picture coming in never counts down."
