@@ -245,7 +245,7 @@ Pick whichever matches your network:
   Tip: TVs on a Wi-Fi system that isn't UniFi (Ruckus, mesh kits …) still show up,
   as "wired" clients — that works too.
 - **Ruckus Unleashed / ZoneDirector Wi-Fi** – the companion integration
-  *Ruckus Client Throughput* (VibeOps-ZA, not published yet) adds a
+  [Ruckus Client Throughput](https://github.com/VibeOps-ZA/ruckus_client_throughput) adds a
   *Wi-Fi throughput* sensor per chosen client from the access points' own
   counters. Those counters refresh about once a minute, so it reacts within
   ~1 minute.
