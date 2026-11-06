@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Ruckus Client Throughput companion integration). Sources are summed.
 - Link the now-public [Ruckus Client Throughput](https://github.com/VibeOps-ZA/ruckus_client_throughput) integration in the throughput docs.
 
+## [2.3.1+eco.9] - 2026-11-06
+
+### Fixed
+- A TV that is on but refuses the saved pairing ("bad username or password", e.g. after a firmware update or
+  reset) was reported as off and retried every poll forever (175 errors in a morning). After 3 such refusals in a
+  row VIDAA Eco now asks Home Assistant to re-pair: a *Re-authentication required* repair appears, and choosing it
+  shows a PIN on the TV to type in. Entity IDs, names and settings are kept. Only refusal code 4 does this; code 5
+  (wrong TV clock or auth mode) still needs the settings checked instead.
+
 ## [2.3.1+eco.8] - 2026-10-14
 
 ### Added

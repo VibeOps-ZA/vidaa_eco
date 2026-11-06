@@ -417,6 +417,7 @@ up automatically from the TV's network announcements.
 | "has not announced its media renderer yet" when playing media | The TV is off or hasn't announced itself since Home Assistant started — switch it on and try again a few seconds later. |
 | TV shows off for a while after switching it on with its own remote | Normally the TV's announcement is picked up within seconds; if your network blocks multicast (SSDP), the 15-minute safety-net check catches it. |
 | Buttons greyed out | The TV is off — buttons only work while it is on. |
+| TV is on but shows off/unavailable, log says `bad username or password` | The TV dropped the pairing (often after a firmware update or reset). After 3 refusals VIDAA Eco raises **Re-authentication required** under **Settings → Devices & services** (and in **Repairs**). Make sure the TV is on its home screen, choose **Reconfigure/Re-authenticate**, and type the PIN the TV shows. Your entities and settings are kept. |
 | Auto-off never counts down | Check the switch is on; on an input it only counts down with **no signal**; in an app only when the **Network throughput** sensor is below the floor. The Activity sensor's `signal_detail` attribute shows what the TV reports. |
 | "Pick a network throughput sensor" when switching Auto power-off on | No throughput source found — follow [Network throughput](#network-throughput-for-auto-power-off). |
 | Network throughput shows `mode: none` | No sensor found for the TV's MACs. Check the router integration has per-client sensors enabled, or pick sensors manually. |

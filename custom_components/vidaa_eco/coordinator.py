@@ -198,6 +198,18 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 device_registry.async_update_device(device_entry.id, **updates)
                 _LOGGER.debug("Refreshed existing device %s: %s", device_entry.id, updates)
 
+    # Consecutive "bad username or password" refusals before asking to re-pair.
+    _AUTH_FAILURES_BEFORE_REAUTH = 3
+
+    def _pairing_rejected(self) -> bool:
+        """True when the last connect was refused for bad credentials (CONNACK 4).
+
+        Only code 4: code 5 ("not authorised") also covers a wrong TV clock or
+        auth mode, which a re-pair would not fix.
+        """
+        client = getattr(self.tv, "_client", None)
+        return getattr(client, "_last_connack_rc", None) == 4
+
     # Consecutive empty getdeviceinfo replies before we stop asking.
     _MAX_DEVICE_INFO_MISSES = 3
 
@@ -273,6 +285,22 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     pass
                 # Try to connect with longer timeout for wake-up scenarios
                 connected = await self.tv.async_connect(timeout=5)
+                if not connected and self._pairing_rejected():
+                    # The TV is on and answering, but refuses our saved pairing
+                    # (MQTT CONNACK 4 "bad username or password" - e.g. after a
+                    # firmware update or reset). Retrying cannot fix that; after
+                    # a few in a row ask Home Assistant to re-pair (PIN on TV)
+                    # instead of reporting the TV as off forever.
+                    self._auth_failures += 1
+                    if self._auth_failures >= self._AUTH_FAILURES_BEFORE_REAUTH:
+                        _LOGGER.warning(
+                            "TV at %s rejects the saved pairing (%s times in a row); "
+                            "asking to re-pair - a PIN will appear on the TV",
+                            self.entry.data.get(CONF_HOST), self._auth_failures)
+                        raise ConfigEntryAuthFailed(
+                            "The TV no longer accepts this pairing. Re-pair it: "
+                            "a PIN appears on the TV screen."
+                        )
                 if not connected:
                     # A TV in standby takes its MQTT broker down with it, so
                     # being unreachable is a power state, not a fetch failure.
