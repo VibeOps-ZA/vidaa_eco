@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Documentation
+- Troubleshooting: after re-pairing, a TV that stays *off* in Home Assistant while it is on needs one off/on with
+  its remote before it sends its status to the new pairing (seen on a 43A53FXVT, firmware V0000.09.09O).
 - Network throughput: note that AirPlay / casting / DLNA between devices on the
   same Wi-Fi never reaches the router, and how to add a Wi-Fi-side source
   (Ruckus Client Throughput companion integration). Sources are summed.
