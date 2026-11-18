@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 (Library/protocol changes are tracked separately in the [`pyvidaa`](https://github.com/warrenrees/pyvidaa) repository.)
 
+
+## [Unreleased]
+
+### Docs
+- README: screenshot caption no longer names the old "TV Remotes" dashboard (it is now a tab of the owner's TV & AV dashboard).
+
 ## [Unreleased]
 
 ### Documentation
