@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+- README: screenshot caption no longer names the old "TV Remotes" dashboard (it is now a tab of the owner's TV & AV dashboard).
+
 ### Documentation
 - Troubleshooting: after re-pairing, a TV that stays *off* in Home Assistant while it is on needs one off/on with
   its remote before it sends its status to the new pairing (seen on a 43A53FXVT, firmware V0000.09.09O).

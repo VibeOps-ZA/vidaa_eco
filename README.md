@@ -13,7 +13,7 @@ let it **switch the TV off by itself** when it has been left on with nothing to 
 
 Everything runs on your own network. No cloud account is needed.
 
-![TV Remotes dashboard](docs/images/dashboard-study-youtube.png)
+![Study TV remote (a tab of a Home Assistant dashboard)](docs/images/dashboard-study-youtube.png)
 
 > **Built on** [ha_vidaatv](https://github.com/warrenrees/ha_vidaatv) and
 > [pyvidaa](https://github.com/warrenrees/pyvidaa) by **Warren Rees**. VIDAA Eco
