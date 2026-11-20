@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
 import math
@@ -55,7 +56,8 @@ from .const import (  # VIDAA Eco auto-off
     ECO_STATE_IDLE,
     ECO_STATE_COUNTDOWN,
 )
-from .idle_logic import is_active, IdleTracker
+from .const import CONF_UNKNOWN_STATE_MODE
+from .idle_logic import DEFAULT_UNKNOWN_STATE_MODE, IdleTracker, is_active
 from . import throughput as tp
 from . import dlna
 from .const import OFFLINE_AFTER_MISSES, OFFLINE_RETRY_SECONDS, WAKE_WINDOW_SECONDS
@@ -119,6 +121,11 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # seeded from what the entry remembers so they exist while the TV is off.
         self.inputs: list[dict[str, str]] = list(entry.data.get(CONF_INPUTS) or [])
         self._inputs_refreshed = False
+        # Serialises every request/response exchange with the TV (poll, source
+        # and app lists, device info, power on/off). Fire-and-forget commands
+        # (keys, volume, input switch) do not wait on it, so buttons stay
+        # instant even while a poll is running.
+        self.request_lock = asyncio.Lock()
 
     @property
     def available(self) -> bool:
@@ -264,7 +271,19 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data from TV."""
+        """Fetch data from TV - one request/response exchange at a time.
+
+        pyvidaa matches a reply to whichever request is waiting, not to the
+        request's topic, and runs requests on a thread pool. Two exchanges in
+        flight at once (this poll and, say, the media player asking for the
+        app list) could take each other's replies, so every request/response
+        call goes through self.request_lock.
+        """
+        async with self.request_lock:
+            return await self._async_update_data_locked()
+
+    async def _async_update_data_locked(self) -> dict[str, Any]:
+        """The poll itself; the caller holds request_lock."""
         start = time.monotonic()
 
         try:
@@ -657,6 +676,26 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             is_signal=data.get("is_signal"),
             throughput_kbps=self._throughput_kbps(),
             floor=floor,
+            unknown_state_mode=self.entry.options.get(
+                CONF_UNKNOWN_STATE_MODE, DEFAULT_UNKNOWN_STATE_MODE
+            ),
+        )
+
+    @staticmethod
+    def _interaction_snapshot(data) -> tuple:
+        """What the TV reported this poll, compared poll to poll by the idle timer.
+
+        A change in any of these (channel, app, input, volume, mute) is someone
+        using the TV, and restarts the idle timer - see idle_logic.py.
+        """
+        return (
+            data.get("statetype"),
+            data.get("app"),
+            data.get("source"),
+            data.get("channel_number"),
+            data.get("channel_name"),
+            data.get("volume"),
+            data.get("is_muted"),
         )
 
     def _evaluate_auto_off(self, data) -> None:
@@ -680,12 +719,15 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             enabled=enabled,
             active=active,
             delay_min=delay_min,
-            vol_snapshot=(data.get("volume"), data.get("is_muted")),
+            snapshot=self._interaction_snapshot(data),
         )
         self._record_eco_state(enabled, active, tracker, now, data.get("statetype"))
         if action == "power_off":
             _LOGGER.info("%s idle grace elapsed; powering off", self.entry.title)
-            self.hass.async_create_task(self._async_power_off_idle())
+            # Tied to the entry, so an unload/reload cancels a pending power-off.
+            self.entry.async_create_background_task(
+                self.hass, self._async_power_off_idle(), "vidaa_eco_auto_power_off"
+            )
 
     def _record_eco_state(
         self, enabled: bool, active: bool, tracker, now: float, statetype: str | None = None
@@ -716,11 +758,28 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.eco_state = state
 
     async def _async_power_off_idle(self) -> None:
-        try:
-            await self.tv.async_power_off()
+        """Switch an idle TV off, re-checking at the last moment.
+
+        Runs after the poll that decided it has released request_lock. The
+        library's power_off() reads the TV's state afresh and only sends the
+        (toggling) power key while the TV is really on, so a TV someone already
+        switched off is never switched back on. Auto power-off being switched
+        off in the meantime cancels it too.
+        """
+        async with self.request_lock:
+            if not getattr(self, "auto_off_enabled", DEFAULT_AUTO_OFF_ENABLED):
+                _LOGGER.debug("%s auto power-off was switched off; not powering off", self.entry.title)
+                return
+            try:
+                sent = await self.tv.async_power_off()
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("Auto power-off of %s failed: %s", self.entry.title, err)
+                return
+        if sent:
             _LOGGER.info("%s powered off after idle grace period", self.entry.title)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("Auto power-off of %s failed: %s", self.entry.title, err)
+        else:
+            _LOGGER.info("%s did not report its state; auto power-off sent nothing", self.entry.title)
+        await self.async_request_refresh()
 
     def _wol_targets(self) -> list[str]:
         """Every MAC worth sending a magic packet to, most specific first.
@@ -820,25 +879,28 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "'wol_mac' in the integration options to enable wake-on-LAN."
             )
 
-        # Also send power on command
-        await self.tv.async_power_on()
+        # Also send power on command (the library reads the state first, so it
+        # is a request/response exchange and waits for any running poll).
+        async with self.request_lock:
+            await self.tv.async_power_on()
         await self.async_request_refresh()
 
     async def async_turn_off(self) -> None:
-        """Turn TV off."""
-        # KEY_POWER is a toggle, so the library's power_off() reads the state
-        # first to avoid switching a sleeping TV back on. We already polled that
-        # state, so send the key directly and skip a round-trip the TV can take
-        # seconds to answer.
+        """Turn TV off.
+
+        KEY_POWER is a toggle. The last poll can be up to a scan interval old -
+        the TV may have been switched off with its own remote since - so the
+        library's power_off() reads the state afresh and only sends the key
+        while the TV is really on. (Sending the key on the polled state alone
+        could switch a TV that was just turned off back on.)
+        """
         if self.data and self.data.get("is_on") is False:
             _LOGGER.debug("TV is already off; not sending power off")
             return
 
-        if self.data:
-            await self.tv.async_send_key("KEY_POWER")
-        else:
-            # No poll has succeeded yet, so let the library decide safely.
-            await self.tv.async_power_off()
+        async with self.request_lock:
+            sent = await self.tv.async_power_off()
+        self._check_sent(sent, "power off")
         await self.async_request_refresh()
 
     @staticmethod
@@ -918,9 +980,18 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_request_refresh()
 
     async def async_get_apps(self) -> list[dict] | None:
-        """Get available apps."""
-        return await self.tv.async_get_apps()
+        """Get available apps (waits for any running poll - see request_lock)."""
+        async with self.request_lock:
+            return await self.tv.async_get_apps()
 
     async def async_get_sources(self) -> list[dict] | None:
-        """Get available sources."""
-        return await self.tv.async_get_sources()
+        """Get available sources (waits for any running poll - see request_lock)."""
+        async with self.request_lock:
+            return await self.tv.async_get_sources()
+
+    async def async_get_device_info(self, timeout: float = 5) -> dict | None:
+        """Ask the TV for its device info (for diagnostics), one exchange at a time."""
+        if not self.tv.is_connected:
+            return None
+        async with self.request_lock:
+            return await self.tv.async_get_device_info(timeout=timeout)

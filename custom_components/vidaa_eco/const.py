@@ -113,8 +113,16 @@ DEFAULT_THROUGHPUT_FLOOR: Final = 100     # kbit/s
 
 # statetypes that are unambiguously idle - safe to power off with no throughput data
 IDLE_STATETYPES: Final = ["remote_launcher", "remote_setting"]
-# in-app statetypes where playing-vs-idle can only be told apart with throughput
-INAPP_STATETYPES: Final = ["app", "livetv"]
+# in-app statetypes where playing-vs-idle can only be told apart with throughput.
+# Live TV is NOT one of them: aerial/satellite TV uses no network traffic, so it
+# always counts as in use (see idle_logic.py).
+INAPP_STATETYPES: Final = ["app"]
+
+# What auto power-off does with a TV state this integration does not know
+# (newer firmware, screen mirroring, ...). Values live in idle_logic.py:
+# "throughput" (default: judged by network traffic, like an app),
+# "in_use" (never idle) or "idle" (always idle - the behaviour before eco.10).
+CONF_UNKNOWN_STATE_MODE: Final = "unknown_state_mode"
 
 # Eco state sensor values (sensor.<tv>_eco_state), in rough lifecycle order.
 ECO_STATE_OFF: Final = "off"            # TV is off / unreachable

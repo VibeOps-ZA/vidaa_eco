@@ -23,15 +23,15 @@ def test_configured_sources_merges_legacy():
 
 
 def test_tv_macs():
-    macs = tp.tv_macs({"mac": "74:D0:82:36:18:AA", "mac_wifi": "f0:ed:51:ad:54:6e", "device_id": "wlan"})
-    assert macs == {"74:d0:82:36:18:aa", "f0:ed:51:ad:54:6e"}
-    assert tp.tv_macs({"device_id": "10b232af57d4"}) == {"10:b2:32:af:57:d4"}
+    macs = tp.tv_macs({"mac": "00:00:5E:00:53:AA", "mac_wifi": "00:00:5e:00:53:6e", "device_id": "wlan"})
+    assert macs == {"00:00:5e:00:53:aa", "00:00:5e:00:53:6e"}
+    assert tp.tv_macs({"device_id": "00005e0053d4"}) == {"00:00:5e:00:53:d4"}
 
 
 def test_identity():
-    assert bare_mac("10:B2:32:AF:57:D4") == "10b232af57d4"
+    assert bare_mac("00:00:5E:00:53:D4") == "00005e0053d4"
     assert bare_mac("wlan") is None
-    assert is_valid_device_id("10b232af57d4") and not is_valid_device_id("wlan")
-    assert tv_device_id({"network_type": "10b232af57d4"}, "aa:aa:aa:aa:aa:aa") == "10b232af57d4"
-    assert tv_device_id({"network_type": "wlan"}, None, "f0:ed:51:ad:54:6e") == "f0ed51ad546e"
+    assert is_valid_device_id("00005e0053d4") and not is_valid_device_id("wlan")
+    assert tv_device_id({"network_type": "00005e0053d4"}, "aa:aa:aa:aa:aa:aa") == "00005e0053d4"
+    assert tv_device_id({"network_type": "wlan"}, None, "00:00:5e:00:53:6e") == "00005e00536e"
     assert tv_device_id({"network_type": "wlan"}) is None

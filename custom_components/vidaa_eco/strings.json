@@ -67,7 +67,8 @@
           "auth_mode": "Authentication mode",
           "throughput_floor_kbps": "Throughput floor",
           "throughput_auto": "Find throughput sensors automatically",
-          "throughput_sensors": "Throughput sensors (manual)"
+          "throughput_sensors": "Throughput sensors (manual)",
+          "unknown_state_mode": "Unknown TV states"
         },
         "data_description": {
           "scan_interval": "How often to poll the TV for state updates (in seconds).",
@@ -75,7 +76,8 @@
           "auth_mode": "How credentials are generated. \"Auto\" detects your TV's protocol version and falls back if the TV rejects it. Choose \"Static\" if your TV runs older firmware and setup fails with a not-authorized error; \"Dynamic\" forces the newer scheme.",
           "throughput_floor_kbps": "Below this total traffic (kbit/s) an open app counts as 'nothing playing' and the idle timer can start. 100 kbit/s suits most streaming apps; raise it if a paused app keeps trickling data.",
           "throughput_auto": "Use the data-rate sensors that another integration (UniFi, FRITZ!Box, ...) attaches to a device with this TV's MAC address - the list above. Ignored when you pick sensors below.",
-          "throughput_sensors": "Pick one or more sensors that measure this TV's traffic (download, upload or both - they are added together). Pick both the Wi-Fi and the Ethernet client if your TV can use either. Any data-rate unit works (bit/s, kbit/s, Mbit/s, kB/s, MB/s ...). **Required while Auto power-off is on**, unless sensors were found automatically. Leave empty to use automatic detection."
+          "throughput_sensors": "Pick one or more sensors that measure this TV's traffic (download, upload or both - they are added together). Pick both the Wi-Fi and the Ethernet client if your TV can use either. Any data-rate unit works (bit/s, kbit/s, Mbit/s, kB/s, MB/s ...). **Required while Auto power-off is on**, unless sensors were found automatically. Leave empty to use automatic detection.",
+          "unknown_state_mode": "Only matters for Auto power-off. What to do when the TV reports a state VIDAA Eco does not know (for example screen mirroring, or a new state after a firmware update). \"Judge by network traffic\" (recommended) treats it like an app: traffic above the floor means in use, and with no throughput data it is always in use. \"Always in use\" never switches the TV off in such a state. \"Always idle\" is how versions before eco.10 behaved and can switch the TV off while you watch."
         }
       }
     },
@@ -159,6 +161,13 @@
         "auto": "Auto (recommended)",
         "dynamic": "Dynamic (newer firmware)",
         "static": "Static (older firmware)"
+      }
+    },
+    "unknown_state_mode": {
+      "options": {
+        "throughput": "Judge by network traffic (recommended)",
+        "in_use": "Always in use (never switch off)",
+        "idle": "Always idle (old behaviour)"
       }
     }
   },

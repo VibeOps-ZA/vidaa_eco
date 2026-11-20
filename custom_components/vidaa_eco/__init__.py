@@ -8,6 +8,7 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -41,6 +42,7 @@ from .const import (
 )
 from .coordinator import VidaaTVDataUpdateCoordinator
 from .identity import is_valid_device_id, tv_device_id
+from .reload_compat import needs_update_listener
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -204,8 +206,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: VidaaTVConfigEntry) -> b
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register update listener for options
-    entry.async_on_unload(entry.add_update_listener(async_update_options))
+    # Options changes reload the entry through OptionsFlowWithReload, and
+    # Home Assistant itself reloads it when discovery finds the TV at a new
+    # address - which it only does while NO update listener is registered.
+    # Older Home Assistant (no OptionsFlowWithReload) still needs our listener
+    # to apply options. See reload_compat.py.
+    if needs_update_listener(config_entries):
+        entry.async_on_unload(entry.add_update_listener(async_update_options))
 
     # Instant on/off: react to the TV's own SSDP announcements instead of
     # waiting for the next poll (and to wake from the asleep back-off).
@@ -350,7 +357,10 @@ async def async_remove_config_entry_device(
 
 
 async def async_update_options(hass: HomeAssistant, entry: VidaaTVConfigEntry) -> None:
-    """Reload when the options change.
+    """Reload when the options change (only on Home Assistant before 2025.8).
+
+    Current Home Assistant uses OptionsFlowWithReload instead and this
+    listener is not registered - see reload_compat.py.
 
     This listener fires for ANY entry update, including writes to entry.data
     such as the hardware-MAC backfill. Reloading for those would tear the

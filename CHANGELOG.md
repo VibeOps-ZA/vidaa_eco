@@ -9,7 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs - 2026-11-20 (docs pass, no code change)
+- README: new "Option C - Private repository" install/update route (HACS can track but not download a private repository;
+  copy the folder over SSH, with links to the official Home Assistant, HACS and SSH-app docs) and a pointer from "Updating".
+
+## [2.3.1+eco.10] - 2026-11-20
+
+Entity IDs, unique IDs, names and settings are unchanged. Needs one Home
+Assistant restart to load (as every code update does).
+
+### Fixed
+- **Auto power-off switched off live TV.** Live TV (aerial, cable, satellite) was
+  judged by network traffic like an app; it has none, so with a throughput source
+  a TV showing live TV was switched off after the idle delay. Live TV now always
+  counts as in use, as the README always said.
+- **Channel, app and input changes now count as activity**, as documented. Before,
+  only a volume/mute change restarted the idle timer. A reading the TV did not give
+  on a poll (e.g. an unanswered volume query) is ignored instead of counting as
+  activity.
+- **Unknown TV states were always idle**, so a state VIDAA Eco does not know (screen
+  mirroring, a new firmware state) could be switched off while in use. They are now
+  judged like an app by default - see the new option below.
+- **Home Assistant 2026.12:** Home Assistant warned that VIDAA Eco "has an update
+  listener and should use it for scheduling a reload". From 2026.12 a TV whose
+  address changed (found again by discovery) would not reconnect until Home
+  Assistant restarted. The options dialog now uses `OptionsFlowWithReload` and no
+  update listener is registered, so Home Assistant reloads the TV itself. Older
+  Home Assistant keeps the previous behaviour.
+- **Replies could be mixed up between requests.** The TV library hands a reply to
+  whichever request is waiting; a poll overlapping a source/app list or diagnostics
+  request could take the wrong reply and briefly show the TV off. Every
+  request/response exchange with a TV now runs one at a time; button presses do not
+  wait.
+- **Turning off could switch a TV back on.** Turn-off (and auto power-off) sent the
+  toggling power key based on a poll up to 30 s old; a TV just switched off with its
+  own remote was switched back on. The TV's state is now read again right before
+  the key is sent. Auto power-off also re-checks that its switch is still on.
+- **`mute: true` could unmute.** `media_player.volume_mute` toggled whatever the
+  requested state; it now only presses the mute key when the TV is not already in
+  that state.
+
+### Added
+- Option **Unknown TV states** (Settings -> Devices & services -> VIDAA Eco ->
+  Configure): *Judge by network traffic* (default), *Always in use*, or *Always
+  idle* (the old behaviour).
+- Diagnostics include the auto power-off state and throughput reading.
+
+### Security
+- Diagnostics now also remove the TV's hardware, Ethernet, Wi-Fi and Wake-on-LAN MAC
+  addresses, its IP address and name (options included) - safe to attach to a
+  public issue.
+- Test data uses documentation-range example MAC addresses (00:00:5e:00:53:xx).
+
+### Tests / CI
+- Tests for live TV, unknown states, activity detection, the reload behaviour, the
+  request lock (a source-level guard that fails if a TV request is added outside
+  it), diagnostics redaction and translations: 9 -> 22 tests.
+- The HACS check in CI is blocking now that the repository is public.
+
 ### Docs
+- README: what counts as idle (live TV, apps without traffic data, unknown states),
+  what counts as activity, the new option, and new **Updating** and **Removing**
+  sections; troubleshooting for unexpected switch-offs, `mute`, and diagnostics.
+
+### Docs (since eco.9)
 - README: screenshot caption no longer names the old "TV Remotes" dashboard (it is now a tab of the owner's TV & AV dashboard).
 
 ### Documentation

@@ -5,7 +5,7 @@ every entity unique_id, so it must be stable and unique per TV.
 
 Historically it was read from the TV's ``getdeviceinfo`` field
 ``network_type``, which on many firmwares holds the Wi-Fi MAC without colons
-(e.g. ``10b232af57d4``). Other firmwares (seen on a 58A60 / V0000.09.61B)
+(e.g. ``00005e0053d4``). Other firmwares (seen on a 58A60 / V0000.09.61B)
 return the literal interface name ``"wlan"`` there instead - so every such TV
 got the same id. :func:`tv_device_id` only accepts a real 12-hex-digit value and
 otherwise falls back to the TV's own MAC addresses.

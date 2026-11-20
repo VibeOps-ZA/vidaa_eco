@@ -38,7 +38,9 @@ Everything runs on your own network. No cloud account is needed.
 10. [Playing media on the TV](#playing-media-on-the-tv)
 11. [How the TV's power state is detected](#how-the-tvs-power-state-is-detected)
 12. [Troubleshooting](#troubleshooting)
-13. [Credits & licence](#credits--licence)
+13. [Updating](#updating)
+14. [Removing](#removing)
+15. [Credits & licence](#credits--licence)
 
 ---
 
@@ -113,6 +115,44 @@ You need:
 2. Copy the folder `custom_components/vidaa_eco` into your Home Assistant
    `config/custom_components/` folder (create `custom_components` if it doesn't exist).
 3. Restart Home Assistant.
+
+### Option C - Private repository: install or update by copying the folder (how the owner does it)
+
+This repository is **private**. [HACS](https://hacs.xyz/docs/use/) can *track* a private repository (it shows that a
+new version exists) but **cannot download** it: its downloads use anonymous GitHub addresses, which answer "404" for
+a private repository. "Download ZIP" and release links also need a GitHub login. So install by copying the integration
+folder onto Home Assistant yourself. Never switch the repository to public just to make HACS work.
+
+1. **Make a backup first:** **Settings -> System -> Backups** ([Home Assistant backup docs](https://www.home-assistant.io/integrations/backup/)).
+2. **Get the code** on a computer you trust that has access to the `VibeOps-ZA` GitHub account. The version running at the
+   owner's home is the branch `feature/idle-fixes`:
+   ```bash
+   git clone --branch feature/idle-fixes https://github.com/VibeOps-ZA/vidaa_eco.git
+   ```
+   GitHub asks for a user name and a **personal access token** as the password (a token with read-only access to this
+   repository is enough; [how to create one](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)).
+   Never paste the token into a file in this repository.
+3. **Make Home Assistant reachable over SSH** (a command-line login) with the
+   [Advanced SSH & Web Terminal app](https://github.com/hassio-addons/addon-ssh) (add it from the app store and give it
+   your public key in its configuration), or the operating system's own SSH described in the
+   [Home Assistant developer docs](https://developers.home-assistant.io/docs/operating-system/debugging/).
+   In the commands below replace `HA_USER` and `HA_HOST` with your SSH user and Home Assistant's address.
+4. **Copy the folder** (the old copy is removed first so deleted files do not linger; check the path twice, the
+   `rm` removes only this one integration's folder):
+   ```bash
+   ssh HA_USER@HA_HOST 'rm -rf /config/custom_components/vidaa_eco'
+   scp -r vidaa_eco/custom_components/vidaa_eco HA_USER@HA_HOST:/config/custom_components/
+   ```
+   `/config` is Home Assistant's configuration folder (the one containing `configuration.yaml`). Your devices,
+   entities and settings are stored inside Home Assistant, not in this folder, so nothing is lost.
+5. **Restart Home Assistant** (**Settings -> System -> power icon -> Restart Home Assistant**). Home Assistant loads
+   integration code only when it starts, so a restart is needed after every install or update.
+6. **Check the version:** open `/config/custom_components/vidaa_eco/manifest.json` (`"version": "2.3.1+eco.10"` for this
+   release) or look under **Settings -> Devices & services**.
+
+**At the owner's home** steps 2-4 are run from the AI Pi host (`ai-pi`), which already holds the GitHub token and the SSH
+access to Home Assistant, so nothing secret is typed or stored in this repository. Changes are made on a branch,
+installed from it for testing, and merged to `main` only after the owner's OK.
 
 ---
 
@@ -192,10 +232,23 @@ It works in two stages so it never surprises you:
    still idle when it reaches zero, it is switched off.
 
 So with the delay set to 30, an idle TV goes off **15 + 30 = 45 minutes** after
-it went idle. Anything that counts as activity — changing channel, opening an
-app, a picture appearing on an input, even a volume or mute change — resets both
-stages. If the TV is switched off some other way before the countdown ends, the
-timer simply clears.
+it went idle. Anything that counts as activity resets both stages:
+
+- changing channel, app or input (including going between the home screen and
+  a settings menu),
+- a volume or mute change,
+- a picture appearing on an input.
+
+VIDAA Eco sees these by comparing what the TV reports on each poll (every 30
+seconds by default). A reading the TV did not give on one poll (for example the
+volume, which some TVs do not always answer) is ignored rather than counted as
+activity. If the TV is switched off some other way before the countdown ends,
+the timer simply clears.
+
+Just before switching off, VIDAA Eco asks the TV once more whether it is on and
+whether **Auto power-off** is still switched on — the TV's power key is a
+toggle, so this makes sure a TV that someone already switched off is never
+switched back on.
 
 ![Counting down on the dashboard](docs/images/dashboard-study-countdown.png)
 
@@ -206,9 +259,11 @@ timer simply clears.
 | Home screen or a settings menu | Yes |
 | An HDMI / AV input with **no signal** (nothing connected, or the device is asleep) | Yes. Many TVs also switch themselves to standby after ~15 minutes with no signal — whichever comes first wins. |
 | An HDMI / AV input with a **picture coming in** | **No** — shows "*input* in use – no timer". The TV can't tell whether you are watching a connected device, so let that device sleep (most do, and HDMI-CEC can switch the TV off with it). |
-| Live TV | No |
+| Live TV (aerial, cable or satellite) | **No — never.** Live TV comes from the TV's own tuner and uses no network traffic, so traffic cannot tell watching from idle. Changing channel or volume still counts as activity. |
 | Inside an app (YouTube, Plex, …) playing | No |
 | Inside an app, paused or idle (traffic below the floor) | Yes — needs a [throughput sensor](#network-throughput-for-auto-power-off) |
+| Inside an app, but no throughput reading at all | No — without traffic data a playing app cannot be told from a paused one, so it is never switched off |
+| A state VIDAA Eco does not know (screen mirroring, a new state after a firmware update …) | Set by the **Unknown TV states** option — by default judged like an app: idle only when the traffic is below the floor |
 
 **How "signal" is detected.** The TV reports a signal flag for every input
 (`has_signal`) each time it is asked, plus a snapshot taken at the moment you
@@ -303,10 +358,14 @@ open YouTube app with almost no traffic, so the TV counts as idle:
 | **Find throughput sensors automatically** | Use data-rate sensors on devices that share the TV's MAC address. The ones found are listed in the dialog | On |
 | **Throughput sensors (manual)** | One or more sensors with the TV's traffic, added together (see [Network throughput](#network-throughput-for-auto-power-off)). Required while Auto power-off is on, unless sensors were found automatically | None |
 | **Throughput floor** | Below this total rate (kbit/s) an open app counts as "nothing playing" | 100 |
+| **Unknown TV states** | What Auto power-off does when the TV reports a state VIDAA Eco does not know (screen mirroring, a new state after a firmware update). **Judge by network traffic** treats it like an app: in use while traffic is above the floor, and always in use when there is no traffic reading. **Always in use** never switches the TV off in such a state. **Always idle** is how versions before eco.10 behaved — it can switch the TV off while you watch. The *Activity* sensor's `statetype` attribute shows the state the TV reports. | Judge by network traffic |
 
 The **Auto power-off** switch and **Auto-off delay** number are ordinary
 entities, so you can change them from a dashboard or an automation. Not using
 Auto power-off? Leave all throughput options alone.
+
+Saving the options reloads the TV's connection straight away (a few seconds)
+— no Home Assistant restart is needed.
 
 ---
 
@@ -423,7 +482,57 @@ up automatically from the TV's network announcements.
 | "Pick a network throughput sensor" when switching Auto power-off on | No throughput source found — follow [Network throughput](#network-throughput-for-auto-power-off). |
 | Network throughput shows `mode: none` | No sensor found for the TV's MACs. Check the router integration has per-client sensors enabled, or pick sensors manually. |
 | Throughput never drops when paused | Some apps keep downloading in the background; raise the **Throughput floor**. |
+| A TV switches off while someone is watching | Open the TV's **Auto-off status** sensor history and the *Activity* sensor's `statetype` attribute at that time. If it shows a state other than `app`, `livetv`, `sourceswitch`, `remote_launcher` or `remote_setting`, set **Unknown TV states** to **Always in use** and [open an issue](https://github.com/VibeOps-ZA/vidaa_eco/issues) with that state's name. |
+| `mute` in an automation does nothing | The TV already was in that state — `mute: true` only presses the TV's mute key when the TV is not muted (and `mute: false` only when it is). |
 | Need more detail | **Settings → Devices & services → VIDAA Eco → ⋮ → Enable debug logging**, reproduce, then download the log. |
+| Asked to attach **diagnostics** to an issue | **Settings → Devices & services → VIDAA Eco → ⋮ (on the TV) → Download diagnostics**. IP addresses, MAC addresses, certificate paths and the TV's name are removed automatically, so it is safe to attach to a public issue. |
+
+---
+
+## Updating
+
+New versions are listed in the [CHANGELOG](CHANGELOG.md). Entity IDs, names,
+settings and history are always kept across updates.
+
+**Installed with HACS** ([how HACS updates work](https://hacs.xyz/docs/use/)):
+
+1. **Settings → Updates** (or **HACS → VIDAA Eco**) shows *VIDAA Eco update available*.
+2. Open it and click **Update** (HACS calls it *Download*).
+3. **Restart Home Assistant** — **Settings → System → ⏻ → Restart Home Assistant**.
+   Home Assistant only loads an integration's new code when it starts.
+
+**Installed from the private repository (copying the folder):** repeat the steps of
+[Option C](#option-c---private-repository-install-or-update-by-copying-the-folder-how-the-owner-does-it).
+HACS will show *an update exists* but cannot download it.
+
+**Installed manually:**
+
+1. Download the new version (green **Code** button → **Download ZIP**, or a release).
+2. Replace the folder `config/custom_components/vidaa_eco` with the new one
+   (keep the folder name). Your TVs, pairing and settings are not stored in that
+   folder, so nothing is lost.
+3. Restart Home Assistant as above.
+
+To check which version is running: **Settings → Devices & services → VIDAA Eco**
+shows it under the integration's name, or open
+`config/custom_components/vidaa_eco/manifest.json` and look at `"version"`.
+
+---
+
+## Removing
+
+1. **Settings → Devices & services → VIDAA Eco** → for each TV: **⋮ → Delete**.
+   This removes the TV's device and entities from Home Assistant. Dashboards or
+   automations that used them will show them as unavailable — remove those
+   cards/automations too.
+2. Remove the code:
+   - **HACS:** **HACS → VIDAA Eco → ⋮ → Remove**.
+   - **Manual:** delete the folder `config/custom_components/vidaa_eco`.
+3. Restart Home Assistant.
+4. Optional: delete `config/certs/vidaa_client.pem` and `vidaa_client.key` if no
+   other integration uses them. To make the TV forget Home Assistant, remove it
+   from the TV's list of connected mobile devices (on most VIDAA TVs:
+   **Settings → System → Device management** or similar).
 
 ---
 

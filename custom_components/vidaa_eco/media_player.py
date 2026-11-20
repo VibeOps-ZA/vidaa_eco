@@ -399,7 +399,17 @@ class VidaaTVMediaPlayer(CoordinatorEntity[VidaaTVDataUpdateCoordinator], MediaP
         await self.coordinator.async_volume_down()
 
     async def async_mute_volume(self, mute: bool) -> None:
-        """Mute the volume."""
+        """Mute (mute=True) or unmute (mute=False) the TV.
+
+        The TV only has a mute TOGGLE key, so it is sent only when the TV is not
+        already in the requested state - otherwise "mute" in an automation would
+        unmute a TV that was already muted. When the mute state is unknown the
+        toggle is sent, as before.
+        """
+        current = self.is_volume_muted
+        if current is not None and bool(current) == bool(mute):
+            _LOGGER.debug("TV already %s; not toggling mute", "muted" if mute else "unmuted")
+            return
         await self.coordinator.async_mute()
 
     async def async_set_volume_level(self, volume: float) -> None:
