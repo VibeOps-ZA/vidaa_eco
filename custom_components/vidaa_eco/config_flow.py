@@ -72,6 +72,8 @@ from .const import (  # VIDAA Eco
 )
 from .identity import bare_mac, tv_device_id
 from .reload_compat import options_flow_base
+from .const import CONF_UNKNOWN_STATE_MODE
+from .idle_logic import DEFAULT_UNKNOWN_STATE_MODE, UNKNOWN_STATE_MODES
 from . import throughput as tp
 
 _LOGGER = logging.getLogger(__name__)
@@ -1120,6 +1122,20 @@ class VidaaTVOptionsFlow(options_flow_base(config_entries)):
                         CONF_THROUGHPUT_FLOOR,
                         default=self.config_entry.options.get(CONF_THROUGHPUT_FLOOR, DEFAULT_THROUGHPUT_FLOOR),
                     ): NumberSelector(NumberSelectorConfig(min=1, max=100000, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="kbit/s")),
+                    # What Auto power-off does when the TV reports a state this
+                    # integration does not know (newer firmware, mirroring ...).
+                    vol.Optional(
+                        CONF_UNKNOWN_STATE_MODE,
+                        default=self.config_entry.options.get(
+                            CONF_UNKNOWN_STATE_MODE, DEFAULT_UNKNOWN_STATE_MODE
+                        ),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(UNKNOWN_STATE_MODES),
+                            mode=SelectSelectorMode.DROPDOWN,
+                            translation_key=CONF_UNKNOWN_STATE_MODE,
+                        )
+                    ),
                 }
             ),
         )
