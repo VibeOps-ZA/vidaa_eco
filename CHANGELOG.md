@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1+eco.10] - 2026-11-20
+
 ### Docs - 2026-11-20 (docs pass, no code change)
 - README: new "Option C - Private repository" install/update route (HACS can track but not download a private repository;
   copy the folder over SSH, with links to the official Home Assistant, HACS and SSH-app docs) and a pointer from "Updating".
-
-## [2.3.1+eco.10] - 2026-11-20
 
 Entity IDs, unique IDs, names and settings are unchanged. Needs one Home
 Assistant restart to load (as every code update does).
