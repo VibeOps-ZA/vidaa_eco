@@ -71,6 +71,7 @@ from .const import (  # VIDAA Eco
     DOCS_THROUGHPUT_URL,
 )
 from .identity import bare_mac, tv_device_id
+from .reload_compat import options_flow_base
 from . import throughput as tp
 
 _LOGGER = logging.getLogger(__name__)
@@ -990,8 +991,13 @@ class VidaaTVConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return VidaaTVOptionsFlow()
 
 
-class VidaaTVOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for Hisense TV."""
+class VidaaTVOptionsFlow(options_flow_base(config_entries)):
+    """Handle options flow for Hisense TV.
+
+    Derives from OptionsFlowWithReload where Home Assistant has it, so saving
+    the options reloads the TV's entry without an update listener (see
+    reload_compat.py for why that matters from Home Assistant 2026.12).
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
