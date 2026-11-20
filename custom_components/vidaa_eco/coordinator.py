@@ -55,7 +55,8 @@ from .const import (  # VIDAA Eco auto-off
     ECO_STATE_IDLE,
     ECO_STATE_COUNTDOWN,
 )
-from .idle_logic import is_active, IdleTracker
+from .const import CONF_UNKNOWN_STATE_MODE
+from .idle_logic import DEFAULT_UNKNOWN_STATE_MODE, IdleTracker, is_active
 from . import throughput as tp
 from . import dlna
 from .const import OFFLINE_AFTER_MISSES, OFFLINE_RETRY_SECONDS, WAKE_WINDOW_SECONDS
@@ -657,6 +658,26 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             is_signal=data.get("is_signal"),
             throughput_kbps=self._throughput_kbps(),
             floor=floor,
+            unknown_state_mode=self.entry.options.get(
+                CONF_UNKNOWN_STATE_MODE, DEFAULT_UNKNOWN_STATE_MODE
+            ),
+        )
+
+    @staticmethod
+    def _interaction_snapshot(data) -> tuple:
+        """What the TV reported this poll, compared poll to poll by the idle timer.
+
+        A change in any of these (channel, app, input, volume, mute) is someone
+        using the TV, and restarts the idle timer - see idle_logic.py.
+        """
+        return (
+            data.get("statetype"),
+            data.get("app"),
+            data.get("source"),
+            data.get("channel_number"),
+            data.get("channel_name"),
+            data.get("volume"),
+            data.get("is_muted"),
         )
 
     def _evaluate_auto_off(self, data) -> None:
@@ -680,7 +701,7 @@ class VidaaTVDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             enabled=enabled,
             active=active,
             delay_min=delay_min,
-            vol_snapshot=(data.get("volume"), data.get("is_muted")),
+            snapshot=self._interaction_snapshot(data),
         )
         self._record_eco_state(enabled, active, tracker, now, data.get("statetype"))
         if action == "power_off":
